@@ -1,0 +1,39 @@
+# NXT-Security configuration.
+# Per-machine overrides go in config/local.yaml (git-ignored).
+# Environment overrides: NXTSEC_<SECTION>__<KEY>, e.g. NXTSEC_LOGGING__LEVEL=DEBUG
+# Credentials are NEVER stored here. Use environment variables (see .env.example).
+
+operator: null            # defaults to the OS username
+
+paths:
+  home: null              # data dir; null = platform default (see docs/configuration.md)
+  scope_file: config/scope.yaml
+  plugins_dir: plugins
+
+database:
+  url: null               # null = sqlite:///<home>/nxtsec.db
+
+logging:
+  level: INFO
+  console: true
+  json: false
+  file: true              # rotating JSON log in <home>/logs/
+
+execution:
+  default_timeout: 60     # seconds
+  max_output_bytes: 10485760
+
+# Explicit tool locations. Leave empty to resolve from PATH.
+tools: {}
+#  nmap: { path: "C:/Program Files (x86)/Nmap/nmap.exe" }
+
+ai:
+  provider: null          # openai | claude | local (Phase 18)
+  providers: {}
+
+scheduler:
+  enabled: false
+
+lab:
+  enabled: true
+  docker_network: nxtsec-lab

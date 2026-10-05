@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nxt-security"
+version = "0.1.0"
+description = "Modular platform for authorized security research, defensive engineering and lab practice."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+dependencies = [
+    "click>=8.1,<9",
+    "PyYAML>=6.0,<7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5", "black>=24", "mypy>=1.10", "types-PyYAML"]
+
+[project.scripts]
+nxtsec = "nxtsec.cli.main:main"
+
+[tool.setuptools.packages.find]
+include = ["nxtsec*", "modules*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S"]
+
+[tool.black]
+target-version = ["py310"]
+line-length = 100
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+packages = ["nxtsec"]
+
+[[tool.mypy.overrides]]
+# click's decorator stubs are not fully typed under --strict
+module = "nxtsec.cli.*"
+disallow_untyped_decorators = false

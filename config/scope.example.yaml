@@ -1,0 +1,12 @@
+# Copy to config/scope.yaml and edit. Anything not allowed here is refused.
+name: home-lab
+operator_attestation: "I own, or have written authorization to test, every system listed."
+allow:
+  - localhost
+  - 127.0.0.0/8
+  - 192.168.1.0/24
+  - 10.10.10.0/24
+  # - authorized.example.com
+  # - "*.lab.example.com"
+deny:
+  - 192.168.1.1          # e.g. the home router

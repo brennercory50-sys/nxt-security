@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+
+# Runtime data — never commit
+data/
+evidence/
+reports/output/
+logs/
+*.db
+*.sqlite
+*.sqlite3
+*.pcap
+*.pcapng
+*.cap
+*.img
+*.dd
+*.E01
+
+# Local config overrides
+config/local.yaml
+scope.local.yaml
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+config/scope.yaml
