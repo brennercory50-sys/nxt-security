@@ -1,12 +1,23 @@
-# Copy to config/scope.yaml and edit. Anything not allowed here is refused.
+# Copy to config/scope.yaml (`nxtsec config init-scope`) and edit.
+# Anything not allowed here is refused. Deny always wins.
 name: home-lab
+
+# Required for REAL-mode network operations (safety.require_attestation).
+# Keep it a quoted sentence: YAML reads bare yes/no/true as booleans.
 operator_attestation: "I own, or have written authorization to test, every system listed."
+
+# Optional: the whole scope stops working after this date (end of day, UTC).
+# expires: 2026-12-31
+
 allow:
   - localhost
   - 127.0.0.0/8
   - 192.168.1.0/24
   - 10.10.10.0/24
   # - authorized.example.com
-  # - "*.lab.example.com"
+  # - "*.lab.example.com"          # subdomains only, not the apex
+  # - target: 172.16.5.0/24        # rule with its own expiry and a note
+  #   expires: 2026-11-15
+  #   note: "client staging network, test window SOW-118"
 deny:
   - 192.168.1.1          # e.g. the home router

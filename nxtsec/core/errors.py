@@ -37,3 +37,11 @@ class PluginError(NxtSecError):
 
 class DatabaseError(NxtSecError):
     """The persistence layer failed."""
+
+
+class JobError(NxtSecError):
+    """An assessment job is in the wrong state or could not be scheduled."""
+
+
+class Cancelled(NxtSecError):
+    """Raised inside a module when the operator cancelled the assessment."""

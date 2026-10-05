@@ -77,3 +77,33 @@ def test_default_home_per_platform(system, env, expect):
 
 def test_nxtsec_home_override(tmp_path):
     assert default_home(env={"NXTSEC_HOME": str(tmp_path)}) == tmp_path
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "safety:\n  max_risk_real: extreme\n",
+        "safety:\n  max_cidr_hosts: 0\n",
+        "safety:\n  max_cidr_hosts: true\n",
+        "jobs:\n  workers: -1\n",
+        "jobs:\n  poll_interval: 0\n",
+        "logging:\n  console_level: NOISY\n",
+    ],
+)
+def test_invalid_phase7_settings(tmp_path, text):
+    with pytest.raises(ConfigError):
+        load_settings(env={}, project_root=_root(tmp_path, text))
+
+
+def test_evidence_dir_default_and_override(tmp_path):
+    s = load_settings(env={"NXTSEC_HOME": str(tmp_path / "h")}, project_root=_root(tmp_path))
+    assert s.evidence_dir == tmp_path / "h" / "evidence"
+    s.data["paths"]["evidence_dir"] = "ev"
+    assert s.evidence_dir == tmp_path / "ev"
+
+
+def test_operator_falls_back_to_os_user(tmp_path):
+    s = load_settings(env={}, project_root=_root(tmp_path))
+    assert s.operator and s.operator != ""
+    s.data["operator"] = "alice"
+    assert s.operator == "alice"

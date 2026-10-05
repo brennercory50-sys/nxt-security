@@ -59,6 +59,17 @@ class AssessmentStatus(str, Enum):
             AssessmentStatus.CANCELLED,
         )
 
+    def can_transition(self, to: AssessmentStatus) -> bool:
+        return to in _TRANSITIONS.get(self, frozenset())
+
+
+_TRANSITIONS: dict[AssessmentStatus, frozenset[AssessmentStatus]] = {
+    AssessmentStatus.QUEUED: frozenset({AssessmentStatus.RUNNING, AssessmentStatus.CANCELLED}),
+    AssessmentStatus.RUNNING: frozenset(
+        {AssessmentStatus.COMPLETED, AssessmentStatus.FAILED, AssessmentStatus.CANCELLED}
+    ),
+}
+
 
 class Mode(str, Enum):
     """LAB and REAL target modes are kept strictly separate."""
@@ -163,6 +174,8 @@ class Assessment:
     modules: list[str]
     mode: Mode = Mode.REAL
     scope_name: str = "default"
+    scope_fingerprint: str | None = None
+    options: dict[str, str] = field(default_factory=dict)
     status: AssessmentStatus = AssessmentStatus.QUEUED
     id: str = field(default_factory=lambda: new_id("asm"))
     created_at: datetime = field(default_factory=utcnow)
@@ -178,9 +191,16 @@ class Assessment:
             "modules": list(self.modules),
             "mode": self.mode.value,
             "scope_name": self.scope_name,
+            "scope_fingerprint": self.scope_fingerprint,
+            "options": dict(self.options),
             "status": self.status.value,
             "created_at": isoformat(self.created_at),
             "started_at": isoformat(self.started_at),
             "finished_at": isoformat(self.finished_at),
             "error": self.error,
         }
+
+    def transition(self, to: AssessmentStatus) -> None:
+        if not self.status.can_transition(to):
+            raise ValueError(f"illegal assessment transition {self.status.value} -> {to.value}")
+        self.status = to

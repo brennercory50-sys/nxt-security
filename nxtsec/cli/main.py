@@ -1,8 +1,8 @@
 """``nxtsec`` command-line entry point.
 
 Commands are registered here from ``nxtsec.cli.commands``. Engines from later
-phases (scan, recon, findings, report, ...) register their own groups when
-they are implemented; nothing is exposed before it works.
+phases (recon, findings, report, ...) register their own groups when they are
+implemented; nothing is exposed before it works.
 """
 
 from __future__ import annotations
@@ -13,8 +13,10 @@ import click
 
 from nxtsec import __version__
 from nxtsec.cli.commands.config_cmd import config
+from nxtsec.cli.commands.jobs_cmd import jobs
 from nxtsec.cli.commands.logs_cmd import logs
 from nxtsec.cli.commands.plugins_cmd import plugins
+from nxtsec.cli.commands.scan_cmd import scan
 from nxtsec.cli.commands.scope_cmd import scope
 from nxtsec.cli.commands.system import doctor, version
 from nxtsec.cli.commands.target_cmd import target
@@ -39,7 +41,7 @@ def cli(ctx: click.Context, config_path: Path | None, no_log_file: bool) -> None
     ctx.ensure_object(dict).update(config=config_path, no_log_file=no_log_file)
 
 
-for _cmd in (version, doctor, config, scope, target, tools, plugins, logs):
+for _cmd in (version, doctor, config, scope, target, scan, jobs, tools, plugins, logs):
     cli.add_command(_cmd)
 
 

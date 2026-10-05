@@ -16,6 +16,7 @@ def scope() -> Scope:
         ],
         ["192.168.1.1", "secret.lab.example.com"],
         name="test",
+        attestation="Test fixture: authorized lab ranges.",
     )
 
 

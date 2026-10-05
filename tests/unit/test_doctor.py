@@ -95,3 +95,26 @@ def test_check_crash_is_contained(tmp_path):
 
     r = Doctor(_settings(tmp_path), PLAT, _tools(), boom, env={}).run()
     assert any(c.section == "internal" and "kaboom" in c.detail for c in r.checks)
+
+
+def test_scope_expired_expiring_and_unattested(tmp_path):
+    r = _run(_settings(tmp_path, scope="allow: [127.0.0.1]\nexpires: 2020-01-01\n"))
+    assert _get(r, "Scope").level == Level.WARN and "expired" in _get(r, "Scope").detail
+
+    from datetime import date, timedelta
+
+    soon = (date.today() + timedelta(days=3)).isoformat()
+    scope = f"allow: [127.0.0.1]\nexpires: {soon}\noperator_attestation: 'I own these hosts.'\n"
+    r = _run(_settings(tmp_path, scope=scope))
+    assert _get(r, "Scope expiry").level == Level.WARN
+    assert not any(c.name == "Scope attestation" for c in r.checks)
+
+    r = _run(_settings(tmp_path, scope="allow: [127.0.0.1]\n"))
+    assert _get(r, "Scope attestation").level == Level.WARN
+    assert "fingerprint" in _get(r, "Scope").detail
+
+
+def test_yaml_boolean_attestation_explained(tmp_path):
+    r = _run(_settings(tmp_path, scope="allow: [127.0.0.1]\noperator_attestation: yes\n"))
+    c = _get(r, "Scope")
+    assert c.level == Level.ERROR and "quote your statement" in c.detail

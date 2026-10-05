@@ -24,7 +24,7 @@ def _normalize_host(host: str) -> str:
     return host.strip().rstrip(".").lower()
 
 
-def _validate_hostname(host: str) -> str:
+def validate_hostname(host: str) -> str:
     h = _normalize_host(host)
     if not h or len(h) > 253 or not _HOSTNAME_RE.match(h):
         raise TargetError(f"invalid hostname: {host!r}")
@@ -76,7 +76,7 @@ def parse_target(raw: str, *, allow_files: bool = True) -> Target:
         try:
             host = str(ipaddress.ip_address(hostname))
         except ValueError:
-            host = _validate_hostname(hostname)
+            host = validate_hostname(hostname)
         return Target(raw=raw, type=TargetType.URL, value=s, host=host)
 
     if "/" in s:
@@ -94,6 +94,6 @@ def parse_target(raw: str, *, allow_files: bool = True) -> Target:
         t = TargetType.IPV4 if ip.version == 4 else TargetType.IPV6
         return Target(raw=raw, type=t, value=str(ip), host=str(ip))
 
-    host = _validate_hostname(s)
+    host = validate_hostname(s)
     t = TargetType.DOMAIN if "." in host else TargetType.HOSTNAME
     return Target(raw=raw, type=t, value=host, host=host)

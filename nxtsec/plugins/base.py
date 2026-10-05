@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from nxtsec.core.errors import PluginError
+from nxtsec.core.errors import Cancelled, PluginError
 from nxtsec.core.models import Evidence, Finding, Mode, Target, TargetType
 
 if TYPE_CHECKING:
@@ -114,6 +115,24 @@ class PluginManifest:
         }
 
 
+EvidenceSink = Callable[[bytes, str, str, str], Evidence]
+
+
+def _no_evidence_sink(data: bytes, name: str, type_: str, description: str) -> Evidence:
+    raise PluginError("no evidence store is attached to this context")
+
+
+def _never_cancelled() -> bool:
+    return False
+
+
+def option_lookup(options: Mapping[str, str], module: str, key: str) -> str | None:
+    """Module options may be namespaced (``network.tcp_connect.ports``) or bare (``ports``)."""
+    if module and f"{module}.{key}" in options:
+        return options[f"{module}.{key}"]
+    return options.get(key)
+
+
 @dataclass
 class ModuleContext:
     """Everything a module may use. Modules must not reach around it."""
@@ -122,13 +141,66 @@ class ModuleContext:
     mode: Mode
     scope: Scope
     granted: frozenset[Permission]
-    logger: logging.Logger
+    logger: logging.Logger | logging.LoggerAdapter[logging.Logger]
     bus: EventBus
-    settings: dict[str, Any] = field(default_factory=dict)
+    options: Mapping[str, str] = field(default_factory=dict)
+    module_name: str = ""
+    cancel_check: Callable[[], bool] = _never_cancelled
+    evidence_sink: EvidenceSink = _no_evidence_sink
 
     def require(self, perm: Permission) -> None:
         if perm not in self.granted:
             raise PluginError(f"permission {perm.value} was not granted to this module")
+
+    # -- cancellation --------------------------------------------------------
+    @property
+    def cancelled(self) -> bool:
+        return self.cancel_check()
+
+    def check_cancelled(self) -> None:
+        """Long-running modules call this between units of work."""
+        if self.cancel_check():
+            raise Cancelled(f"assessment {self.assessment_id} was cancelled")
+
+    # -- options -------------------------------------------------------------
+    def option(self, key: str, default: str | None = None) -> str | None:
+        v = option_lookup(self.options, self.module_name, key)
+        return default if v is None else v
+
+    def option_float(self, key: str, default: float, lo: float, hi: float) -> float:
+        return parse_float_option(self.option(key), key, default, lo, hi)
+
+    def option_int(self, key: str, default: int, lo: int, hi: int) -> int:
+        return parse_int_option(self.option(key), key, default, lo, hi)
+
+    # -- evidence ------------------------------------------------------------
+    def save_evidence(self, data: bytes, name: str, type_: str, description: str) -> Evidence:
+        """Persist raw evidence (hashed, read-only) and return its record."""
+        return self.evidence_sink(data, name, type_, description)
+
+
+def parse_float_option(raw: str | None, key: str, default: float, lo: float, hi: float) -> float:
+    if raw is None:
+        return default
+    try:
+        v = float(raw)
+    except ValueError:
+        raise PluginError(f"option {key!r} must be a number, got {raw!r}") from None
+    if not (lo <= v <= hi):
+        raise PluginError(f"option {key!r} must be between {lo} and {hi}")
+    return v
+
+
+def parse_int_option(raw: str | None, key: str, default: int, lo: int, hi: int) -> int:
+    if raw is None:
+        return default
+    try:
+        v = int(raw)
+    except ValueError:
+        raise PluginError(f"option {key!r} must be an integer, got {raw!r}") from None
+    if not (lo <= v <= hi):
+        raise PluginError(f"option {key!r} must be between {lo} and {hi}")
+    return v
 
 
 @dataclass
@@ -137,12 +209,18 @@ class ModuleResult:
     findings: list[Finding] = field(default_factory=list)
     evidence: list[Evidence] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    commands: list[str] = field(default_factory=list)  # external commands run (redacted argv)
 
 
 class Plugin(ABC):
     """Base class for every module. Subclasses set ``manifest`` and implement ``run``."""
 
     manifest: PluginManifest
+
+    @classmethod
+    def validate_options(cls, options: Mapping[str, str]) -> None:
+        """Reject invalid options at planning time. Raise :class:`PluginError`."""
+        return None
 
     @abstractmethod
     def run(self, target: Target | None, ctx: ModuleContext) -> ModuleResult:

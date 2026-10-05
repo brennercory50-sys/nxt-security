@@ -14,6 +14,7 @@ import sys
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -192,14 +193,46 @@ class Doctor:
             return [Check("config", "Scope", Level.ERROR, str(exc))]
         if not sc.allow_entries:
             return [Check("config", "Scope", Level.WARN, f"scope '{sc.name}' allows nothing")]
-        return [
+        if sc.expires is not None and sc.is_expired():
+            return [
+                Check(
+                    "config",
+                    "Scope",
+                    Level.WARN,
+                    f"scope '{sc.name}' expired on {sc.expires.date()}; "
+                    "all network targets are refused",
+                )
+            ]
+        out = [
             Check(
                 "config",
                 "Scope",
                 Level.OK,
-                f"'{sc.name}': {len(sc.allow_entries)} allow, {len(sc.deny_entries)} deny",
+                f"'{sc.name}': {len(sc.allow_entries)} allow, {len(sc.deny_entries)} deny, "
+                f"fingerprint {sc.fingerprint[:12]}",
             )
         ]
+        soon = sc.expiring_within(timedelta(days=7))
+        if soon:
+            out.append(
+                Check(
+                    "config",
+                    "Scope expiry",
+                    Level.WARN,
+                    "expires within 7 days: " + ", ".join(soon),
+                )
+            )
+        if self.settings.get("safety.require_attestation", True) and not sc.attestation:
+            out.append(
+                Check(
+                    "config",
+                    "Scope attestation",
+                    Level.WARN,
+                    "no operator_attestation: REAL-mode network assessments will be refused "
+                    "until you add one",
+                )
+            )
+        return out
 
     def _filesystem(self) -> list[Check]:
         home = self.settings.home

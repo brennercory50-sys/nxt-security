@@ -9,9 +9,13 @@ from pathlib import Path
 from nxtsec.config.settings import Settings, load_settings
 from nxtsec.database.store import Database, open_database
 from nxtsec.events.bus import EventBus
+from nxtsec.evidence.store import EvidenceStore
 from nxtsec.integrations.tools import ToolRegistry
+from nxtsec.jobs.engine import AssessmentEngine
 from nxtsec.logging.setup import configure_logging
+from nxtsec.modules.builtin import register_builtins
 from nxtsec.platform.detect import PlatformInfo, detect_platform
+from nxtsec.plugins.policy import Policy
 from nxtsec.plugins.registry import PluginRegistry
 from nxtsec.safety.scope import Scope
 
@@ -27,6 +31,7 @@ class App:
         configure_logging(
             str(settings.get("logging.level", "INFO")),
             console=bool(settings.get("logging.console", True)),
+            console_level=str(settings.get("logging.console_level", "WARNING")),
             json_console=bool(settings.get("logging.json", False)),
             log_dir=settings.log_dir if log_to_file and settings.get("logging.file") else None,
         )
@@ -36,16 +41,41 @@ class App:
     def db(self) -> Database:
         return open_database(self.settings.database_url)
 
-    @cached_property
-    def scope(self) -> Scope:
+    def load_scope(self) -> Scope:
+        """Read the scope file fresh (the engine calls this at plan and run time)."""
         path = self.settings.scope_file
         return Scope.load(path) if path.is_file() else Scope.empty()
 
     @cached_property
+    def scope(self) -> Scope:
+        return self.load_scope()
+
+    @cached_property
     def plugins(self) -> PluginRegistry:
         reg = PluginRegistry()
+        register_builtins(reg)
         reg.discover_entry_points()
         return reg
+
+    @cached_property
+    def policy(self) -> Policy:
+        return Policy.from_settings(self.settings)
+
+    @cached_property
+    def evidence(self) -> EvidenceStore:
+        return EvidenceStore(self.settings.evidence_dir, self.db, self.settings.operator)
+
+    @cached_property
+    def engine(self) -> AssessmentEngine:
+        return AssessmentEngine(
+            db=self.db,
+            registry=self.plugins,
+            scope_loader=self.load_scope,
+            policy=self.policy,
+            bus=self.bus,
+            evidence=self.evidence,
+            operator=self.settings.operator,
+        )
 
     @cached_property
     def platform(self) -> PlatformInfo:

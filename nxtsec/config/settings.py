@@ -13,8 +13,9 @@ Credentials are never read from YAML; they come only from the environment.
 from __future__ import annotations
 
 import copy
+import getpass
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -25,12 +26,25 @@ from nxtsec.platform.detect import default_home
 
 DEFAULTS: dict[str, Any] = {
     "operator": None,
-    "paths": {"home": None, "scope_file": "config/scope.yaml", "plugins_dir": "plugins"},
+    "paths": {
+        "home": None,
+        "scope_file": "config/scope.yaml",
+        "plugins_dir": "plugins",
+        "evidence_dir": None,
+    },
     "database": {"url": None},
-    "logging": {"level": "INFO", "console": True, "json": False, "file": True},
+    "logging": {
+        "level": "INFO",
+        "console": True,
+        "console_level": "WARNING",
+        "json": False,
+        "file": True,
+    },
     "tools": {},
     "execution": {"default_timeout": 60, "max_output_bytes": 10485760},
     "ai": {"provider": None, "providers": {}},
+    "safety": {"require_attestation": True, "max_cidr_hosts": 4096, "max_risk_real": "medium"},
+    "jobs": {"workers": 2, "poll_interval": 5},
     "scheduler": {"enabled": False},
     "lab": {"enabled": True, "docker_network": "nxtsec-lab"},
 }
@@ -89,6 +103,7 @@ class Settings:
     data: dict[str, Any]
     project_root: Path
     sources: list[str]
+    env: dict[str, str] = field(default_factory=lambda: dict(os.environ))
 
     def get(self, dotted: str, default: Any = None) -> Any:
         node: Any = self.data
@@ -105,7 +120,7 @@ class Settings:
     @property
     def home(self) -> Path:
         h = self.get("paths.home")
-        return Path(h).expanduser() if h else default_home()
+        return Path(h).expanduser() if h else default_home(env=self.env)
 
     @property
     def scope_file(self) -> Path:
@@ -121,6 +136,11 @@ class Settings:
         return str(url) if url else f"sqlite:///{self.home / 'nxtsec.db'}"
 
     @property
+    def evidence_dir(self) -> Path:
+        d = self.get("paths.evidence_dir")
+        return self._resolve(str(d)) if d else self.home / "evidence"
+
+    @property
     def log_dir(self) -> Path:
         return self.home / "logs"
 
@@ -129,17 +149,30 @@ class Settings:
         op = self.get("operator")
         if op:
             return str(op)
-        return os.environ.get("USER") or os.environ.get("USERNAME") or "unknown"
+        try:
+            return getpass.getuser()  # LOGNAME, USER, LNAME, USERNAME, then the user database
+        except (KeyError, OSError):
+            return "unknown"
 
     def validate(self) -> None:
-        level = str(self.get("logging.level", "INFO")).upper()
-        if level not in _LEVELS:
-            raise ConfigError(f"logging.level must be one of {sorted(_LEVELS)}")
+        for key in ("logging.level", "logging.console_level"):
+            if str(self.get(key, "INFO")).upper() not in _LEVELS:
+                raise ConfigError(f"{key} must be one of {sorted(_LEVELS)}")
         t = self.get("execution.default_timeout")
         if not isinstance(t, (int, float)) or t <= 0:
             raise ConfigError("execution.default_timeout must be a positive number")
         if not isinstance(self.get("tools"), dict):
             raise ConfigError("tools must be a mapping of tool name -> settings")
+        risk = str(self.get("safety.max_risk_real", "medium"))
+        if risk not in ("passive", "low", "medium", "high"):
+            raise ConfigError("safety.max_risk_real must be passive, low, medium or high")
+        for key in ("safety.max_cidr_hosts", "jobs.workers"):
+            v = self.get(key)
+            if not isinstance(v, int) or isinstance(v, bool) or v < 1:
+                raise ConfigError(f"{key} must be a positive integer")
+        poll = self.get("jobs.poll_interval")
+        if not isinstance(poll, (int, float)) or isinstance(poll, bool) or poll <= 0:
+            raise ConfigError("jobs.poll_interval must be a positive number")
 
 
 def find_project_root(start: Path | None = None) -> Path:
@@ -180,6 +213,6 @@ def load_settings(
         data = _merge(data, env_over)
         sources.append("environment")
 
-    s = Settings(data=data, project_root=root, sources=sources)
+    s = Settings(data=data, project_root=root, sources=sources, env=e)
     s.validate()
     return s

@@ -23,11 +23,12 @@ htmlcov/
 id_rsa*
 id_ed25519*
 
-# Runtime data — never commit
-data/
-evidence/
-reports/output/
-logs/
+# Runtime data — never commit. Anchored to the repo root ("/") so they never
+# match source packages such as nxtsec/evidence/.
+/data/
+/evidence/
+/reports/output/
+/logs/
 *.db
 *.sqlite
 *.sqlite3

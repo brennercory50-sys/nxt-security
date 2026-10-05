@@ -15,7 +15,10 @@ from typing import Any
 
 from nxtsec.safety.redaction import redact, redact_obj
 
-CONTEXT_FIELDS = ("event", "module", "assessment_id", "target", "command", "returncode")
+# "module" is a reserved LogRecord attribute (the source file name), so the
+# NXT-Security module/plugin name travels as MODULE_KEY and is emitted as "module".
+MODULE_KEY = "nxt_module"
+CONTEXT_FIELDS = ("event", MODULE_KEY, "assessment_id", "target", "command", "returncode")
 _STD = set(vars(logging.makeLogRecord({}))) | {"message", "asctime"}
 
 
@@ -39,7 +42,7 @@ class JsonFormatter(logging.Formatter):
         }
         for k, v in vars(record).items():
             if k not in _STD:
-                out[k] = v
+                out["module" if k == MODULE_KEY else k] = v
         if record.exc_info:
             out["exception"] = redact(self.formatException(record.exc_info))
         return json.dumps(out, default=str)
@@ -47,7 +50,11 @@ class JsonFormatter(logging.Formatter):
 
 class ConsoleFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
-        ctx = " ".join(f"{k}={getattr(record, k)}" for k in CONTEXT_FIELDS if hasattr(record, k))
+        ctx = " ".join(
+            f"{'module' if k == MODULE_KEY else k}={getattr(record, k)}"
+            for k in CONTEXT_FIELDS
+            if hasattr(record, k)
+        )
         base = f"{record.levelname:<8} {record.name}: {record.getMessage()}"
         return f"{base} [{ctx}]" if ctx else base
 
@@ -56,11 +63,15 @@ def configure_logging(
     level: str = "INFO",
     *,
     console: bool = True,
+    console_level: str | None = None,
     json_console: bool = False,
     log_dir: Path | None = None,
 ) -> logging.Logger:
+    """``level`` applies to the log file; ``console_level`` (default: same) to the terminal."""
+    file_level = logging.getLevelName(level.upper())
+    con_level = logging.getLevelName((console_level or level).upper())
     root = logging.getLogger("nxtsec")
-    root.setLevel(level.upper())
+    root.setLevel(min(file_level, con_level))
     root.propagate = False
     for h in list(root.handlers):
         root.removeHandler(h)
@@ -69,6 +80,7 @@ def configure_logging(
     redactor = RedactionFilter()
     if console:
         ch = logging.StreamHandler()
+        ch.setLevel(con_level)
         ch.setFormatter(JsonFormatter() if json_console else ConsoleFormatter())
         ch.addFilter(redactor)
         root.addHandler(ch)
@@ -77,6 +89,7 @@ def configure_logging(
         fh = logging.handlers.RotatingFileHandler(
             log_dir / "nxtsec.jsonl", maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8"
         )
+        fh.setLevel(file_level)
         fh.setFormatter(JsonFormatter())
         fh.addFilter(redactor)
         root.addHandler(fh)

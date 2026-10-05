@@ -81,7 +81,39 @@ MIGRATIONS: list[str] = [
     );
     CREATE UNIQUE INDEX ux_targets_type_value ON targets(type, value);
     """,
+    # 3: job control, per-module run records, finding occurrences
+    """
+    ALTER TABLE assessments ADD COLUMN cancel_requested INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE assessments ADD COLUMN scope_fingerprint TEXT;
+    CREATE INDEX ix_assessments_status ON assessments(status, created_at);
+    CREATE TABLE module_runs (
+        id TEXT PRIMARY KEY,
+        assessment_id TEXT NOT NULL REFERENCES assessments(id),
+        seq INTEGER NOT NULL,
+        module TEXT NOT NULL,
+        status TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        finished_at TEXT NOT NULL,
+        error TEXT,
+        observation_count INTEGER NOT NULL DEFAULT 0,
+        finding_count INTEGER NOT NULL DEFAULT 0,
+        evidence_id TEXT,
+        observations TEXT NOT NULL DEFAULT '[]',
+        errors TEXT NOT NULL DEFAULT '[]',
+        commands TEXT NOT NULL DEFAULT '[]'
+    );
+    CREATE INDEX ix_module_runs_assessment ON module_runs(assessment_id, seq);
+    CREATE TABLE finding_occurrences (
+        finding_id TEXT NOT NULL REFERENCES findings(id),
+        assessment_id TEXT NOT NULL REFERENCES assessments(id),
+        seen_at TEXT NOT NULL,
+        PRIMARY KEY (finding_id, assessment_id)
+    );
+    CREATE INDEX ix_evidence_assessment ON evidence(assessment_id);
+    """,
 ]
+
+_ASSESSMENT_COLS = "data,status,started_at,finished_at,error,cancel_requested"
 
 
 class Database(ABC):
@@ -98,7 +130,46 @@ class Database(ABC):
     def get_assessment(self, assessment_id: str) -> dict[str, Any] | None: ...
 
     @abstractmethod
-    def list_assessments(self, limit: int = 50) -> list[dict[str, Any]]: ...
+    def list_assessments(
+        self, limit: int = 50, status: str | None = None
+    ) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    def list_queued(self, limit: int = 50) -> list[str]:
+        """IDs of queued assessments, oldest first."""
+
+    @abstractmethod
+    def claim_assessment(self, assessment_id: str, started_at: str) -> bool:
+        """Atomically move queued -> running. False if another worker got it first."""
+
+    @abstractmethod
+    def cancel_queued(self, assessment_id: str, finished_at: str) -> bool:
+        """Atomically move queued -> cancelled."""
+
+    @abstractmethod
+    def request_cancel(self, assessment_id: str) -> bool:
+        """Flag a running assessment for cooperative cancellation."""
+
+    @abstractmethod
+    def is_cancel_requested(self, assessment_id: str) -> bool: ...
+
+    @abstractmethod
+    def add_module_run(self, run: dict[str, Any]) -> None: ...
+
+    @abstractmethod
+    def list_module_runs(self, assessment_id: str) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    def findings_for_assessment(self, assessment_id: str) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    def get_evidence(self, evidence_id: str) -> dict[str, Any] | None: ...
+
+    @abstractmethod
+    def list_evidence(self, assessment_id: str | None = None) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    def list_audit(self, limit: int = 100) -> list[dict[str, Any]]: ...
 
     @abstractmethod
     def upsert_finding(self, f: Finding) -> tuple[str, bool]:
@@ -173,9 +244,9 @@ class SQLiteDatabase(Database):
         d = a.to_dict()
         self._exec(
             """INSERT INTO assessments
-               (id,target,target_type,operator,mode,scope_name,modules,status,
+               (id,target,target_type,operator,mode,scope_name,scope_fingerprint,modules,status,
                 created_at,started_at,finished_at,error,data)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                ON CONFLICT(id) DO UPDATE SET status=excluded.status,
                  started_at=excluded.started_at, finished_at=excluded.finished_at,
                  error=excluded.error, data=excluded.data""",
@@ -186,6 +257,7 @@ class SQLiteDatabase(Database):
                 a.operator,
                 a.mode.value,
                 a.scope_name,
+                a.scope_fingerprint,
                 json.dumps(a.modules),
                 a.status.value,
                 d["created_at"],
@@ -196,15 +268,119 @@ class SQLiteDatabase(Database):
             ),
         )
 
-    def get_assessment(self, assessment_id: str) -> dict[str, Any] | None:
-        row = self._exec("SELECT data FROM assessments WHERE id=?", (assessment_id,)).fetchone()
-        return json.loads(row["data"]) if row else None
+    @staticmethod
+    def _assessment_row(row: sqlite3.Row) -> dict[str, Any]:
+        """The JSON blob, overlaid with the authoritative lifecycle columns."""
+        d: dict[str, Any] = json.loads(row["data"])
+        d.update(
+            status=row["status"],
+            started_at=row["started_at"],
+            finished_at=row["finished_at"],
+            error=row["error"],
+            cancel_requested=bool(row["cancel_requested"]),
+        )
+        return d
 
-    def list_assessments(self, limit: int = 50) -> list[dict[str, Any]]:
+    def get_assessment(self, assessment_id: str) -> dict[str, Any] | None:
+        row = self._exec(
+            f"SELECT {_ASSESSMENT_COLS} FROM assessments WHERE id=?",  # noqa: S608 - constant
+            (assessment_id,),
+        ).fetchone()
+        return self._assessment_row(row) if row else None
+
+    def list_assessments(self, limit: int = 50, status: str | None = None) -> list[dict[str, Any]]:
+        if status:
+            rows = self._exec(
+                f"SELECT {_ASSESSMENT_COLS} FROM assessments WHERE status=? "  # noqa: S608
+                "ORDER BY created_at DESC LIMIT ?",
+                (status, int(limit)),
+            ).fetchall()
+        else:
+            rows = self._exec(
+                f"SELECT {_ASSESSMENT_COLS} FROM assessments "  # noqa: S608
+                "ORDER BY created_at DESC LIMIT ?",
+                (int(limit),),
+            ).fetchall()
+        return [self._assessment_row(r) for r in rows]
+
+    def list_queued(self, limit: int = 50) -> list[str]:
         rows = self._exec(
-            "SELECT data FROM assessments ORDER BY created_at DESC LIMIT ?", (int(limit),)
+            "SELECT id FROM assessments WHERE status='queued' ORDER BY created_at LIMIT ?",
+            (int(limit),),
         ).fetchall()
-        return [json.loads(r["data"]) for r in rows]
+        return [str(r["id"]) for r in rows]
+
+    def claim_assessment(self, assessment_id: str, started_at: str) -> bool:
+        cur = self._exec(
+            "UPDATE assessments SET status='running', started_at=? WHERE id=? AND status='queued'",
+            (started_at, assessment_id),
+        )
+        return cur.rowcount == 1
+
+    def cancel_queued(self, assessment_id: str, finished_at: str) -> bool:
+        cur = self._exec(
+            "UPDATE assessments SET status='cancelled', finished_at=?, "
+            "error='cancelled before start' WHERE id=? AND status='queued'",
+            (finished_at, assessment_id),
+        )
+        return cur.rowcount == 1
+
+    def request_cancel(self, assessment_id: str) -> bool:
+        cur = self._exec(
+            "UPDATE assessments SET cancel_requested=1 WHERE id=? AND status='running'",
+            (assessment_id,),
+        )
+        return cur.rowcount == 1
+
+    def is_cancel_requested(self, assessment_id: str) -> bool:
+        row = self._exec(
+            "SELECT cancel_requested FROM assessments WHERE id=?", (assessment_id,)
+        ).fetchone()
+        return bool(row and row["cancel_requested"])
+
+    def add_module_run(self, run: dict[str, Any]) -> None:
+        self._exec(
+            """INSERT INTO module_runs
+               (id,assessment_id,seq,module,status,started_at,finished_at,error,
+                observation_count,finding_count,evidence_id,observations,errors,commands)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                run["id"],
+                run["assessment_id"],
+                run["seq"],
+                run["module"],
+                run["status"],
+                run["started_at"],
+                run["finished_at"],
+                run.get("error"),
+                run.get("observation_count", 0),
+                run.get("finding_count", 0),
+                run.get("evidence_id"),
+                json.dumps(run.get("observations", []), default=str),
+                json.dumps(run.get("errors", [])),
+                json.dumps(run.get("commands", [])),
+            ),
+        )
+
+    def list_module_runs(self, assessment_id: str) -> list[dict[str, Any]]:
+        rows = self._exec(
+            "SELECT * FROM module_runs WHERE assessment_id=? ORDER BY seq", (assessment_id,)
+        ).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            for k in ("observations", "errors", "commands"):
+                d[k] = json.loads(d[k])
+            out.append(d)
+        return out
+
+    def _record_occurrence(self, finding_id: str, assessment_id: str | None) -> None:
+        if assessment_id:
+            self._exec(
+                "INSERT OR IGNORE INTO finding_occurrences (finding_id,assessment_id,seen_at) "
+                "VALUES (?,?,?)",
+                (finding_id, assessment_id, utcnow().isoformat()),
+            )
 
     def upsert_finding(self, f: Finding) -> tuple[str, bool]:
         fp = f.fingerprint
@@ -217,6 +393,7 @@ class SQLiteDatabase(Database):
                 self._exec(
                     "UPDATE findings SET data=? WHERE id=?", (json.dumps(existing), row["id"])
                 )
+                self._record_occurrence(str(row["id"]), f.assessment_id)
                 return str(row["id"]), False
             d = f.to_dict()
             self._exec(
@@ -236,6 +413,7 @@ class SQLiteDatabase(Database):
                     json.dumps(d),
                 ),
             )
+            self._record_occurrence(f.id, f.assessment_id)
             return f.id, True
 
     def list_findings(self, status: str | None = None) -> list[dict[str, Any]]:
@@ -244,6 +422,36 @@ class SQLiteDatabase(Database):
         else:
             rows = self._exec("SELECT data FROM findings").fetchall()
         return [json.loads(r["data"]) for r in rows]
+
+    def findings_for_assessment(self, assessment_id: str) -> list[dict[str, Any]]:
+        rows = self._exec(
+            "SELECT f.data FROM findings f JOIN finding_occurrences o ON o.finding_id = f.id "
+            "WHERE o.assessment_id=? ORDER BY f.created_at",
+            (assessment_id,),
+        ).fetchall()
+        return [json.loads(r["data"]) for r in rows]
+
+    def get_evidence(self, evidence_id: str) -> dict[str, Any] | None:
+        row = self._exec("SELECT data FROM evidence WHERE id=?", (evidence_id,)).fetchone()
+        return json.loads(row["data"]) if row else None
+
+    def list_evidence(self, assessment_id: str | None = None) -> list[dict[str, Any]]:
+        if assessment_id:
+            rows = self._exec(
+                "SELECT data FROM evidence WHERE assessment_id=? ORDER BY created_at",
+                (assessment_id,),
+            ).fetchall()
+        else:
+            rows = self._exec("SELECT data FROM evidence ORDER BY created_at").fetchall()
+        return [json.loads(r["data"]) for r in rows]
+
+    def list_audit(self, limit: int = 100) -> list[dict[str, Any]]:
+        rows = self._exec(
+            "SELECT id,timestamp,operator,action,target,detail FROM audit_log "
+            "ORDER BY id DESC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+        return [{**dict(r), "detail": json.loads(r["detail"])} for r in rows]
 
     def add_evidence(self, e: Evidence) -> None:
         d = e.to_dict()

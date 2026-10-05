@@ -17,9 +17,12 @@ LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 @click.option(
     "--level", type=click.Choice(LEVELS, case_sensitive=False), help="Minimum severity to show."
 )
+@click.option("--assessment", "assessment_id", help="Only entries for this assessment ID.")
 @click.option("--raw", is_flag=True, help="Print raw JSON lines.")
 @click.pass_context
-def logs(ctx: click.Context, lines: int, level: str | None, raw: bool) -> None:
+def logs(
+    ctx: click.Context, lines: int, level: str | None, assessment_id: str | None, raw: bool
+) -> None:
     """Show recent entries from the NXT-Security log file (already redacted)."""
     path = get_app(ctx).settings.log_dir / "nxtsec.jsonl"
     if not path.is_file():
@@ -33,14 +36,18 @@ def logs(ctx: click.Context, lines: int, level: str | None, raw: bool) -> None:
                 rec = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            if assessment_id and rec.get("assessment_id") != assessment_id:
+                continue
             sev = str(rec.get("severity", "INFO"))
             if sev in LEVELS and LEVELS.index(sev) < min_rank:
                 continue
+            if raw:
+                keep.append(line.rstrip())
+                continue
+            module = f" [{rec['module']}]" if rec.get("module") else ""
             keep.append(
-                line.rstrip()
-                if raw
-                else f"{rec.get('timestamp', '')} {sev:<8} {rec.get('logger', '')}: "
-                f"{rec.get('message', '')}"
+                f"{rec.get('timestamp', '')} {sev:<8} {rec.get('logger', '')}: "
+                f"{rec.get('message', '')}{module}"
             )
     for item in keep:
         click.echo(item)

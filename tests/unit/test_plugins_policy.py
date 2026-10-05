@@ -127,3 +127,52 @@ def test_event_bus_isolates_failures():
     unsub()
     bus.publish("x")
     assert seen == ["x"]
+
+
+# --- Phase 6 policy rules ----------------------------------------------------
+from nxtsec.safety.scope import Scope  # noqa: E402
+
+
+def test_lab_and_real_are_separate(scope):
+    lab_ok = _manifest(name="labprobe", target_types=frozenset({TargetType.LAB, TargetType.IPV4}))
+    with pytest.raises(PluginError, match="LAB mode only accepts lab"):
+        Policy().authorize(lab_ok, parse_target("192.168.1.5"), Mode.LAB, scope)
+    with pytest.raises(PluginError, match="require LAB mode"):
+        Policy().authorize(lab_ok, parse_target("lab:dvwa"), Mode.REAL, scope)
+    assert Policy().authorize(lab_ok, parse_target("lab:dvwa"), Mode.LAB, scope)
+
+
+def test_attestation_required_for_real_network():
+    unattested = Scope(["192.168.1.0/24"])
+    with pytest.raises(ScopeViolation, match="operator_attestation"):
+        Policy().authorize(Demo.manifest, parse_target("192.168.1.5"), Mode.REAL, unattested)
+    relaxed = Policy(require_attestation=False)
+    assert relaxed.authorize(Demo.manifest, parse_target("192.168.1.5"), Mode.REAL, unattested)
+
+
+def test_attestation_not_needed_for_local_files():
+    files = _manifest(
+        name="filecheck",
+        permissions=frozenset({Permission.LOCAL_FILES}),
+        target_types=frozenset({TargetType.FILE}),
+    )
+    assert Policy().authorize(files, parse_target("file:/x"), Mode.REAL, Scope([]))
+
+
+def test_cidr_size_cap(scope):
+    m = _manifest(name="sweep", target_types=frozenset({TargetType.CIDR}))
+    assert Policy().authorize(m, parse_target("10.10.10.0/24"), Mode.REAL, scope)
+    with pytest.raises(PluginError, match="limit is 16"):
+        Policy(max_cidr_hosts=16).authorize(m, parse_target("10.10.10.0/24"), Mode.REAL, scope)
+
+
+def test_policy_from_settings(tmp_path):
+    from nxtsec.config.settings import load_settings
+
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "config.yaml").write_text(
+        "safety:\n  max_cidr_hosts: 8\n  require_attestation: false\n  max_risk_real: low\n"
+    )
+    p = Policy.from_settings(load_settings(env={}, project_root=tmp_path))
+    assert p.max_cidr_hosts == 8 and not p.require_attestation
+    assert p.max_risk_real == RiskLevel.LOW

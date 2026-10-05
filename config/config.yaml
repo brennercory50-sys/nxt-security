@@ -9,13 +9,15 @@ paths:
   home: null              # data dir; null = platform default (see docs/configuration.md)
   scope_file: config/scope.yaml
   plugins_dir: plugins
+  evidence_dir: null      # null = <home>/evidence
 
 database:
   url: null               # null = sqlite:///<home>/nxtsec.db
 
 logging:
-  level: INFO
+  level: INFO             # log file level
   console: true
+  console_level: WARNING  # terminal level (INFO/DEBUG for more detail)
   json: false
   file: true              # rotating JSON log in <home>/logs/
 
@@ -30,6 +32,15 @@ tools: {}
 ai:
   provider: null          # openai | claude | local (Phase 18)
   providers: {}
+
+safety:
+  require_attestation: true   # REAL-mode network ops need operator_attestation in the scope
+  max_cidr_hosts: 4096        # largest CIDR target accepted
+  max_risk_real: medium       # modules above this risk run only in LAB mode
+
+jobs:
+  workers: 2                  # in-process concurrent assessments
+  poll_interval: 5            # seconds between queue checks for `nxtsec jobs worker`
 
 scheduler:
   enabled: false
