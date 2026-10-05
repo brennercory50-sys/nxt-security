@@ -3,6 +3,7 @@ import pytest
 from nxtsec.core.errors import DatabaseError
 from nxtsec.core.models import Assessment, AssessmentStatus, Evidence, Finding, Severity
 from nxtsec.database import open_database
+from nxtsec.database.store import MIGRATIONS
 from nxtsec.targets import parse_target
 
 
@@ -14,8 +15,8 @@ def db(tmp_path):
 
 
 def test_migrations_idempotent(db):
-    assert db.schema_version() == 1
-    assert db.migrate() == 1
+    assert db.schema_version() == len(MIGRATIONS)
+    assert db.migrate() == len(MIGRATIONS)
 
 
 def test_assessment_roundtrip(db):

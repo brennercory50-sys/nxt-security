@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.0] - Phases 2–5
+
+### Added
+- CLI split into per-area command modules; `--help` on every command (tested).
+- `nxtsec doctor [--json] [--strict]`: platform, Python, tools, config, scope, data dir, storage,
+  database, plugins, interfaces, name resolution, privileges, environment; overall
+  READY / DEGRADED / NOT READY. Flags credentials stored in YAML config as an ERROR.
+- Tool registry with metadata and detection (INSTALLED, MISSING, OUTDATED, BROKEN, UNSUPPORTED)
+  for python, git, nmap, tshark, dig, whois, curl, openssl, yara, docker. Never installs anything.
+- `nxtsec tools list|check|info`.
+- `nxtsec target parse|add|list|remove` with a persisted target inventory (DB migration 2);
+  out-of-scope targets are refused by default and every change is audited.
+- `nxtsec config path|init-scope`, `nxtsec logs`.
+
 ## [0.1.0] - Phase 0 + Phase 1
 
 ### Added

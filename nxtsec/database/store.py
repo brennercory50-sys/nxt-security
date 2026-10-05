@@ -16,7 +16,8 @@ from pathlib import Path
 from typing import Any
 
 from nxtsec.core.errors import DatabaseError
-from nxtsec.core.models import Assessment, AssessmentStatus, Evidence, Finding
+from nxtsec.core.ids import new_id, utcnow
+from nxtsec.core.models import Assessment, AssessmentStatus, Evidence, Finding, Target
 
 MIGRATIONS: list[str] = [
     # 1: initial schema
@@ -67,6 +68,19 @@ MIGRATIONS: list[str] = [
         detail TEXT NOT NULL
     );
     """,
+    # 2: saved targets inventory
+    """
+    CREATE TABLE targets (
+        id TEXT PRIMARY KEY,
+        raw TEXT NOT NULL,
+        type TEXT NOT NULL,
+        value TEXT NOT NULL,
+        host TEXT,
+        label TEXT,
+        created_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX ux_targets_type_value ON targets(type, value);
+    """,
 ]
 
 
@@ -100,6 +114,17 @@ class Database(ABC):
     def audit(
         self, operator: str, action: str, target: str | None, detail: dict[str, Any]
     ) -> None: ...
+
+    @abstractmethod
+    def add_target(self, target: Target, label: str | None = None) -> tuple[str, bool]:
+        """Save a target. Returns ``(target_id, created)``; existing targets are not duplicated."""
+
+    @abstractmethod
+    def list_targets(self) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    def remove_target(self, ref: str) -> bool:
+        """Remove by ID or exact normalized value. Returns whether anything was removed."""
 
     @abstractmethod
     def close(self) -> None: ...
@@ -237,13 +262,46 @@ class SQLiteDatabase(Database):
         )
 
     def audit(self, operator: str, action: str, target: str | None, detail: dict[str, Any]) -> None:
-        from nxtsec.core.ids import utcnow
         from nxtsec.safety.redaction import redact_obj
 
         self._exec(
             "INSERT INTO audit_log (timestamp,operator,action,target,detail) VALUES (?,?,?,?,?)",
             (utcnow().isoformat(), operator, action, target, json.dumps(redact_obj(detail))),
         )
+
+    def add_target(self, target: Target, label: str | None = None) -> tuple[str, bool]:
+        with self._lock:
+            row = self._exec(
+                "SELECT id FROM targets WHERE type=? AND value=?",
+                (target.type.value, target.value),
+            ).fetchone()
+            if row:
+                return str(row["id"]), False
+            tid = new_id("tgt")
+            self._exec(
+                "INSERT INTO targets (id,raw,type,value,host,label,created_at) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (
+                    tid,
+                    target.raw,
+                    target.type.value,
+                    target.value,
+                    target.host,
+                    label,
+                    utcnow().isoformat(),
+                ),
+            )
+            return tid, True
+
+    def list_targets(self) -> list[dict[str, Any]]:
+        rows = self._exec(
+            "SELECT id,raw,type,value,host,label,created_at FROM targets ORDER BY created_at"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def remove_target(self, ref: str) -> bool:
+        cur = self._exec("DELETE FROM targets WHERE id=? OR value=?", (ref, ref))
+        return cur.rowcount > 0
 
     def close(self) -> None:
         with self._lock:

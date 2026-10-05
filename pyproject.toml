@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nxt-security"
-version = "0.1.0"
+version = "0.2.0"
 description = "Modular platform for authorized security research, defensive engineering and lab practice."
 readme = "README.md"
 requires-python = ">=3.10"

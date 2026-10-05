@@ -9,7 +9,9 @@ from pathlib import Path
 from nxtsec.config.settings import Settings, load_settings
 from nxtsec.database.store import Database, open_database
 from nxtsec.events.bus import EventBus
+from nxtsec.integrations.tools import ToolRegistry
 from nxtsec.logging.setup import configure_logging
+from nxtsec.platform.detect import PlatformInfo, detect_platform
 from nxtsec.plugins.registry import PluginRegistry
 from nxtsec.safety.scope import Scope
 
@@ -44,3 +46,14 @@ class App:
         reg = PluginRegistry()
         reg.discover_entry_points()
         return reg
+
+    @cached_property
+    def platform(self) -> PlatformInfo:
+        return detect_platform()
+
+    @cached_property
+    def tools(self) -> ToolRegistry:
+        return ToolRegistry(
+            overrides=self.settings.get("tools") or {},
+            system=self.platform.system,
+        )
