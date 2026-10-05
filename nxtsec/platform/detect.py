@@ -43,7 +43,8 @@ def _is_admin(system: str) -> bool:
         try:
             import ctypes
 
-            return bool(ctypes.windll.shell32.IsUserAnAdmin())  # type: ignore[attr-defined]
+            windll = getattr(ctypes, "windll", None)  # only exists on Windows
+            return bool(windll and windll.shell32.IsUserAnAdmin())
         except (AttributeError, OSError):
             return False
     geteuid = getattr(os, "geteuid", None)
