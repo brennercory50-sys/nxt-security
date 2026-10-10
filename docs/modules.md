@@ -11,6 +11,7 @@ network, web and forensics engines arrive in Phases 8–13.
 | `forensics.hash` | file | passive | READ_ONLY, LOCAL_FILES | MD5/SHA-1/SHA-256/SHA-512 of a file or tree, read-only. |
 | `dns.records` | domain, hostname, URL | low | NETWORK_ACCESS | Enumerate A/AAAA/CNAME/MX/NS/TXT/SOA/CAA; derive mail-exchanger/name-server/alias edges; flag SPF/DMARC gaps. |
 | `ip.info` | IP, domain, hostname, URL | low | NETWORK_ACCESS | Classify each address (global/private/loopback/…) and resolve PTR records. |
+| `tls.certificate` | domain, hostname, IP, URL | low | NETWORK_ACCESS | Inspect the presented X.509 certificate: expiry, trust, hostname match, key strength. |
 
 ### `network.tcp_connect`
 Options: `ports` (default `22,80,443`, or the URL's port; ranges like `8000-8010`; max 1024),
@@ -40,7 +41,17 @@ Options: `timeout` (0.5–60, default 5). Classification is offline (`ipaddress`
 resolved first (through the scope resolution guard). ASN and geolocation enrichment is deferred
 to the OSINT engine (Phase 12).
 
+### `tls.certificate`
+Options: `port` (default 443, or the URL's port), `timeout` (1–60, default 10). Connects to the
+scope-checked address, completes a TLS handshake with SNI, and reads the leaf certificate. It
+verifies the chain against the system trust store; on failure it re-reads the certificate
+unverified and records the reason, so an untrusted endpoint is still reported rather than hidden.
+Findings (about the operator's own endpoint): expired certificate (high), expiring within 30 days
+(medium), untrusted/self-signed chain (medium), hostname mismatch (medium), and weak key —
+RSA < 2048 or EC < 256 bits (medium). It performs certificate inspection only and sends no
+application data.
+
 > **Deferred to a later Phase 8 increment:** HTTP metadata (headers, `robots.txt`,
-> `security.txt`, technology fingerprinting), TLS certificate inspection, certificate-transparency
-> subdomain discovery, and RDAP/WHOIS. These require the target HTTP client and outbound access to
-> public APIs; they are tracked as a known gap.
+> `security.txt`, technology fingerprinting), certificate-transparency subdomain discovery, and
+> RDAP/WHOIS. These need the target HTTP client and outbound access to public APIs; they are
+> tracked as a known gap.

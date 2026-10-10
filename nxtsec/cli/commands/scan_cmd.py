@@ -16,7 +16,7 @@ from nxtsec.jobs.runner import spawn_detached
 from nxtsec.safety.redaction import redact_obj
 
 
-def _parse_options(pairs: tuple[str, ...]) -> dict[str, str]:
+def parse_cli_options(pairs: tuple[str, ...]) -> dict[str, str]:
     out: dict[str, str] = {}
     for p in pairs:
         if "=" not in p:
@@ -78,7 +78,7 @@ def scan_run(
     app = get_app(ctx)
     try:
         a = app.engine.plan(
-            target, modules, mode=Mode.LAB if lab else Mode.REAL, options=_parse_options(options)
+            target, modules, mode=Mode.LAB if lab else Mode.REAL, options=parse_cli_options(options)
         )
     except ScopeViolation as exc:
         click.echo(click.style(f"REFUSED: {exc}", fg="red"), err=True)

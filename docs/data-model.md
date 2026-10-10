@@ -15,7 +15,7 @@ Each observation serializes with a `type` discriminator. Current types:
 | `ip.info` | IP address classification and PTR records |
 | `http.response` | HTTP exchange metadata *(reserved; module pending)* |
 | `tech` | Detected technology *(reserved; module pending)* |
-| `tls.certificate` | X.509 certificate details *(reserved; module pending)* |
+| `tls.certificate` | X.509 certificate details |
 | `ct.certificate` | Certificate-transparency entry *(reserved; module pending)* |
 | `subdomain` | Discovered subdomain *(reserved; module pending)* |
 | `rdap` | RDAP/WHOIS object *(reserved; module pending)* |

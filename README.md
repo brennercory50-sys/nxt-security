@@ -20,7 +20,7 @@ engineering, vulnerability assessment, forensics and lab practice.
 | 5 | `nxtsec doctor` (+ `--json`) | ✅ done |
 | 6 | Scope: expiry, attestation, fingerprint, DNS pivot guard, LAB/REAL separation | ✅ done |
 | 7 | Assessment/job engine: lifecycle, evidence, cancellation, background workers | ✅ done |
-| 8 | Recon engine: DNS records + mail-security, IP classification, `nxtsec recon` | 🟡 in progress (HTTP/TLS/CT/RDAP deferred) |
+| 8 | Recon engine: DNS records + mail-security, IP classification, TLS certificate inspection | 🟡 in progress (HTTP/CT/RDAP deferred) |
 | 9+ | Network, web, vulnerability engines, … | ⏳ planned |
 
 Nothing listed as planned exists yet. See `docs/architecture.md` for the roadmap.
@@ -39,6 +39,7 @@ nxtsec target add 192.168.1.20 --label nas
 nxtsec scan run 192.168.1.20 -m network.tcp_connect -o ports=22,80,443
 nxtsec jobs list
 nxtsec recon dns example.com        # DNS records + mail posture + IP info
+nxtsec recon tls example.com        # certificate expiry, trust, hostname, key
 nxtsec config validate
 nxtsec scope show
 nxtsec scope check 192.168.1.20 8.8.8.8     # exit code 3 if anything is out of scope

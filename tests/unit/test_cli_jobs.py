@@ -189,3 +189,19 @@ def test_recon_ip_localhost_json():
     detail = json.loads(r.output)
     obs = [o for run_ in detail["module_runs"] for o in run_["observations"]]
     assert any(o["type"] == "ip.info" and o["classification"] == "loopback" for o in obs)
+
+
+def test_recon_tls_against_local_server(tmp_path):
+    from tests.support.tls_server import make_cert, tls_server
+
+    cert_path, key_path = make_cert(tmp_path, "localhost", ["localhost"])
+    with tls_server(cert_path, key_path) as port:
+        r = run("recon", "tls", "localhost", "-o", f"port={port}", "--json")
+    # self-signed => untrusted finding => assessment "completed" (findings are not failures)
+    detail = json.loads(r.output)
+    obs = [o for run_ in detail["module_runs"] for o in run_["observations"]]
+    assert any(o["type"] == "tls.certificate" for o in obs)
+    assert any(
+        "untrusted" in f["title"].lower() or "self-signed" in f["title"].lower()
+        for f in detail["findings"]
+    )

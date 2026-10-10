@@ -54,6 +54,20 @@ def _obs_line(o: dict[str, Any]) -> str:
         return f"{o['address']} PTR {', '.join(o['names'])}"
     if t == "file.hash":
         return f"{o['sha256']}  {o['path']} ({o['size']} bytes)"
+    if t == "tls.certificate":
+        trust = "trusted" if o["trusted"] else f"UNTRUSTED ({o.get('trust_error')})"
+        return (
+            f"{o['host']}:{o['port']} {o['subject']} {trust} "
+            f"expires {o['not_after'][:10]} ({o['days_remaining']}d) "
+            f"{o['key_type']} {o.get('key_bits')}"
+        )
+    if t == "dns.record":
+        return f"{o['name']} {o['rtype']:<5} {o['value']}"
+    if t == "relation":
+        return f"{o['source']} -{o['relation']}-> {o['target']}"
+    if t == "ip.info":
+        ptr = (" ptr=" + ",".join(o["ptr"])) if o.get("ptr") else ""
+        return f"{o['address']} [{o['classification']}]{ptr}"
     return json.dumps({k: v for k, v in o.items() if k != "type"}, default=str)
 
 

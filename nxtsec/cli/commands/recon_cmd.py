@@ -14,6 +14,7 @@ import sys
 import click
 
 from nxtsec.cli.commands.jobs_cmd import assessment_detail, print_detail
+from nxtsec.cli.commands.scan_cmd import parse_cli_options
 from nxtsec.cli.common import get_app, json_option
 from nxtsec.core.errors import NxtSecError, ScopeViolation
 from nxtsec.core.models import Mode
@@ -22,13 +23,16 @@ from nxtsec.safety.redaction import redact_obj
 RECON_PROFILES = {
     "dns": ["dns.records", "ip.info"],
     "ip": ["ip.info"],
+    "tls": ["tls.certificate"],
 }
 
 
-def _run(ctx: click.Context, target: str, modules: list[str], as_json: bool) -> None:
+def _run(
+    ctx: click.Context, target: str, modules: list[str], options: tuple[str, ...], as_json: bool
+) -> None:
     app = get_app(ctx)
     try:
-        a = app.engine.plan(target, modules, mode=Mode.REAL)
+        a = app.engine.plan(target, modules, mode=Mode.REAL, options=parse_cli_options(options))
     except ScopeViolation as exc:
         click.echo(click.style(f"REFUSED: {exc}", fg="red"), err=True)
         sys.exit(3)
@@ -50,17 +54,29 @@ def recon() -> None:
 
 @recon.command("dns")
 @click.argument("target")
+@click.option("-o", "--option", "options", multiple=True, metavar="KEY=VALUE")
 @json_option
 @click.pass_context
-def recon_dns(ctx: click.Context, target: str, as_json: bool) -> None:
+def recon_dns(ctx: click.Context, target: str, options: tuple[str, ...], as_json: bool) -> None:
     """Enumerate DNS records, mail-security posture and IP classification for TARGET."""
-    _run(ctx, target, RECON_PROFILES["dns"], as_json)
+    _run(ctx, target, RECON_PROFILES["dns"], options, as_json)
+
+
+@recon.command("tls")
+@click.argument("target")
+@click.option("-o", "--option", "options", multiple=True, metavar="KEY=VALUE")
+@json_option
+@click.pass_context
+def recon_tls(ctx: click.Context, target: str, options: tuple[str, ...], as_json: bool) -> None:
+    """Inspect TARGET's TLS certificate (expiry, trust, hostname, key strength)."""
+    _run(ctx, target, RECON_PROFILES["tls"], options, as_json)
 
 
 @recon.command("ip")
 @click.argument("target")
+@click.option("-o", "--option", "options", multiple=True, metavar="KEY=VALUE")
 @json_option
 @click.pass_context
-def recon_ip(ctx: click.Context, target: str, as_json: bool) -> None:
+def recon_ip(ctx: click.Context, target: str, options: tuple[str, ...], as_json: bool) -> None:
     """Classify TARGET's addresses and resolve their PTR records."""
-    _run(ctx, target, RECON_PROFILES["ip"], as_json)
+    _run(ctx, target, RECON_PROFILES["ip"], options, as_json)

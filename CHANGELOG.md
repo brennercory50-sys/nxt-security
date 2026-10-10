@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0] - Phase 8 (recon, part 2: TLS certificates)
+
+### Added
+- TLS layer (`nxtsec/net/tls.py`, `cryptography`): connect to a target address, complete a
+  handshake with SNI, and return the leaf certificate with negotiated version/cipher; verify
+  against the system trust store and fall back to an unverified read (recording why) so an
+  untrusted endpoint is still reported. RFC 6125 hostname matching and certificate parsing into
+  the normalized `tls.certificate` observation.
+- `tls.certificate` module: findings for expired, expiring-soon, untrusted/self-signed,
+  hostname-mismatch and weak-key certificates — all about the operator's own endpoint.
+- `nxtsec recon tls`; `-o KEY=VALUE` options added to all `recon` subcommands.
+- Richer CLI rendering for DNS, relationship, IP and certificate observations.
+- Shared test harness (`tests/support/tls_server.py`) that generates certificates and runs a
+  real loopback TLS server, so certificate handling is tested over a genuine handshake offline.
+- `cryptography` runtime dependency.
+
 ## [0.4.0] - Phase 8 (recon, part 1)
 
 ### Added
