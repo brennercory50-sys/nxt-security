@@ -11,7 +11,7 @@ import click
 
 from nxtsec.cli.common import emit, get_app, json_option
 from nxtsec.core.errors import TargetError
-from nxtsec.core.net import LookupTimeout, is_ip, resolve_host
+from nxtsec.net.resolve import LookupTimeout, is_ip, resolve_host
 from nxtsec.targets import parse_target
 
 

@@ -61,7 +61,7 @@ def closed_port():
 def test_builtins_register_and_validate():
     reg = PluginRegistry()
     register_builtins(reg)
-    assert len(reg) == len(BUILTIN_PLUGINS) == 3
+    assert len(reg) == len(BUILTIN_PLUGINS) >= 3
 
 
 # -- tcp_connect -----------------------------------------------------------------

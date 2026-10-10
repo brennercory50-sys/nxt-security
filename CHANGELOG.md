@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.0] - Phase 8 (recon, part 1)
+
+### Added
+- Normalized observation model (`nxtsec/core/observations.py`): typed records for DNS,
+  relationships, ports, IP info, HTTP, TLS, CT, subdomains, RDAP and well-known files.
+  `ModuleResult.add()` and `ModuleContext.setting()` / `config`.
+- DNS client (`nxtsec/net/dns.py`, dnspython): A/AAAA/CNAME/MX/NS/TXT/SOA/CAA/PTR/SRV,
+  configurable nameservers, normalized answers and status mapping.
+- `dns.records` module: record enumeration, mail-exchanger/name-server/alias relationships,
+  and informational/low findings for a domain's own SPF/DMARC posture.
+- `ip.info` module: offline IP classification plus PTR lookups.
+- `nxtsec recon dns|ip` convenience commands (run through the assessment engine).
+- `dnspython` runtime dependency.
+
+### Changed
+- Moved the resolution helper to `nxtsec/net/resolve.py` (new `nxtsec.net` package).
+
+### Deferred (known gap)
+- HTTP metadata, TLS certificate inspection, certificate-transparency discovery and RDAP/WHOIS
+  recon modules. Observation types for them exist; the modules are not yet implemented.
+
 ## [0.3.0] - Phases 6–7
 
 ### Added

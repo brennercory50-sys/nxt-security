@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+from nxtsec.modules.dns.records import DnsRecords
 from nxtsec.modules.dns.resolve import DnsResolve
 from nxtsec.modules.forensics.hashes import FileHash
+from nxtsec.modules.network.ip_info import IpInfoModule
 from nxtsec.modules.network.tcp_connect import TcpConnect
 from nxtsec.plugins.base import Plugin
 from nxtsec.plugins.registry import PluginRegistry
 
-BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (DnsResolve, TcpConnect, FileHash)
+BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
+    DnsResolve,
+    DnsRecords,
+    TcpConnect,
+    IpInfoModule,
+    FileHash,
+)
 
 
 def register_builtins(registry: PluginRegistry) -> None:

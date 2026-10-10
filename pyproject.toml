@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nxt-security"
-version = "0.3.0"
+version = "0.4.0"
 description = "Modular platform for authorized security research, defensive engineering and lab practice."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,6 +12,7 @@ license = { text = "Proprietary" }
 dependencies = [
     "click>=8.1,<9",
     "PyYAML>=6.0,<7",
+    "dnspython>=2.6,<3",
 ]
 
 [project.optional-dependencies]

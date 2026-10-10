@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 
 from nxtsec.core.errors import PluginError, ScopeViolation
 from nxtsec.core.models import Target, TargetType
-from nxtsec.core.net import LookupTimeout, is_ip, resolve_host
+from nxtsec.net.resolve import LookupTimeout, is_ip, resolve_host
 from nxtsec.plugins.base import (
     ModuleContext,
     ModuleResult,

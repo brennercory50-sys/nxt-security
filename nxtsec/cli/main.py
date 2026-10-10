@@ -16,6 +16,7 @@ from nxtsec.cli.commands.config_cmd import config
 from nxtsec.cli.commands.jobs_cmd import jobs
 from nxtsec.cli.commands.logs_cmd import logs
 from nxtsec.cli.commands.plugins_cmd import plugins
+from nxtsec.cli.commands.recon_cmd import recon
 from nxtsec.cli.commands.scan_cmd import scan
 from nxtsec.cli.commands.scope_cmd import scope
 from nxtsec.cli.commands.system import doctor, version
@@ -41,7 +42,7 @@ def cli(ctx: click.Context, config_path: Path | None, no_log_file: bool) -> None
     ctx.ensure_object(dict).update(config=config_path, no_log_file=no_log_file)
 
 
-for _cmd in (version, doctor, config, scope, target, scan, jobs, tools, plugins, logs):
+for _cmd in (version, doctor, config, scope, target, scan, recon, jobs, tools, plugins, logs):
     cli.add_command(_cmd)
 
 

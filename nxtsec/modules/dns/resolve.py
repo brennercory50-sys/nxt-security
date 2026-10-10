@@ -11,7 +11,7 @@ import socket
 from typing import Any
 
 from nxtsec.core.models import Target, TargetType
-from nxtsec.core.net import LookupTimeout, bounded_call, is_ip, resolve_host
+from nxtsec.net.resolve import LookupTimeout, bounded_call, is_ip, resolve_host
 from nxtsec.plugins.base import (
     ModuleContext,
     ModuleResult,

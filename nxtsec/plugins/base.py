@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from nxtsec.core.errors import Cancelled, PluginError
 from nxtsec.core.models import Evidence, Finding, Mode, Target, TargetType
+from nxtsec.core.observations import Observation
 
 if TYPE_CHECKING:
     import logging
@@ -147,6 +148,16 @@ class ModuleContext:
     module_name: str = ""
     cancel_check: Callable[[], bool] = _never_cancelled
     evidence_sink: EvidenceSink = _no_evidence_sink
+    config: Mapping[str, Any] = field(default_factory=dict)  # effective settings (read-only)
+
+    def setting(self, dotted: str, default: Any = None) -> Any:
+        """Read a platform setting such as ``network.user_agent``."""
+        node: Any = self.config
+        for part in dotted.split("."):
+            if not isinstance(node, Mapping) or part not in node:
+                return default
+            node = node[part]
+        return default if node is None else node
 
     def require(self, perm: Permission) -> None:
         if perm not in self.granted:
@@ -210,6 +221,9 @@ class ModuleResult:
     evidence: list[Evidence] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     commands: list[str] = field(default_factory=list)  # external commands run (redacted argv)
+
+    def add(self, *observations: Observation) -> None:
+        self.observations.extend(o.to_dict() for o in observations)
 
 
 class Plugin(ABC):

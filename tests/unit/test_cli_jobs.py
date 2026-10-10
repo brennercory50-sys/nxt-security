@@ -175,3 +175,17 @@ def test_plugins_list_and_show():
     shown = json.loads(run("plugins", "show", "forensics.hash").output)
     assert shown["risk_level"] == "passive" and "read-only" in shown["documentation"].lower()
     assert run("plugins", "show", "nope").exit_code == 1
+
+
+def test_recon_refuses_out_of_scope():
+    r = run("recon", "dns", "notmine.example")
+    assert r.exit_code == 3 and "REFUSED" in r.output
+
+
+def test_recon_ip_localhost_json():
+    # localhost is in the example scope; ip.info works offline for a literal/loopback
+    r = run("recon", "ip", "127.0.0.1", "--json")
+    assert r.exit_code in (0, 1)
+    detail = json.loads(r.output)
+    obs = [o for run_ in detail["module_runs"] for o in run_["observations"]]
+    assert any(o["type"] == "ip.info" and o["classification"] == "loopback" for o in obs)
