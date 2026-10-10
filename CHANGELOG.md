@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.0] - Phases 16 & 19 (findings engine + reporting)
+
+### Added
+- Finding triage engine (`nxtsec/findings/`): validated status state machine
+  (`FindingStatus.can_transition`), append-only history and notes, severity-ordered
+  listing with status/severity/module/open filters, lookup by id prefix; all changes audited.
+- `nxtsec findings list|show|set-status|note|stats`.
+- Reporting engine (`nxtsec/reporting/`): deterministic, fully redacted reports in Markdown,
+  self-contained HTML (inline CSS, light/dark, no external requests), JSON and CSV, with
+  executive summary, severity distribution, methodology, scope and per-finding detail.
+- `nxtsec report [--assessment ID] [--format F] [--min-severity S] [--open] [-o FILE]`.
+- Database: `get_finding`, `update_finding` (status column kept in sync with the JSON blob).
+
+This closes the core loop: scan -> findings -> triage -> report.
+
 ## [0.5.0] - Phase 8 (recon, part 2: TLS certificates)
 
 ### Added

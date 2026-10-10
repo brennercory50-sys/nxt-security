@@ -21,6 +21,8 @@ engineering, vulnerability assessment, forensics and lab practice.
 | 6 | Scope: expiry, attestation, fingerprint, DNS pivot guard, LAB/REAL separation | ✅ done |
 | 7 | Assessment/job engine: lifecycle, evidence, cancellation, background workers | ✅ done |
 | 8 | Recon engine: DNS records + mail-security, IP classification, TLS certificate inspection | 🟡 in progress (HTTP/CT/RDAP deferred) |
+| 16 | Finding engine: dedup, validated status transitions, notes, triage CLI | ✅ done |
+| 19 | Reporting engine: Markdown / HTML / JSON / CSV | ✅ done |
 | 9+ | Network, web, vulnerability engines, … | ⏳ planned |
 
 Nothing listed as planned exists yet. See `docs/architecture.md` for the roadmap.
@@ -40,6 +42,8 @@ nxtsec scan run 192.168.1.20 -m network.tcp_connect -o ports=22,80,443
 nxtsec jobs list
 nxtsec recon dns example.com        # DNS records + mail posture + IP info
 nxtsec recon tls example.com        # certificate expiry, trust, hostname, key
+nxtsec findings list                # triage what was found
+nxtsec report --format html -o report.html
 nxtsec config validate
 nxtsec scope show
 nxtsec scope check 192.168.1.20 8.8.8.8     # exit code 3 if anything is out of scope
@@ -58,4 +62,4 @@ python -m mypy          # strict type checking
 Docs: [architecture](docs/architecture.md) · [configuration](docs/configuration.md) ·
 [security](docs/security.md) · [plugins](docs/plugins.md) · [development](docs/development.md) ·
 [CLI](docs/cli.md) · [tools](docs/tools.md) · [assessments](docs/assessments.md) ·
-[modules](docs/modules.md)
+[modules](docs/modules.md) · [findings](docs/findings.md) · [reporting](docs/reporting.md)

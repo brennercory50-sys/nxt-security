@@ -179,6 +179,12 @@ class Database(ABC):
     def list_findings(self, status: str | None = None) -> list[dict[str, Any]]: ...
 
     @abstractmethod
+    def get_finding(self, finding_id: str) -> dict[str, Any] | None: ...
+
+    @abstractmethod
+    def update_finding(self, finding_id: str, data: dict[str, Any]) -> None: ...
+
+    @abstractmethod
     def add_evidence(self, e: Evidence) -> None: ...
 
     @abstractmethod
@@ -422,6 +428,17 @@ class SQLiteDatabase(Database):
         else:
             rows = self._exec("SELECT data FROM findings").fetchall()
         return [json.loads(r["data"]) for r in rows]
+
+    def get_finding(self, finding_id: str) -> dict[str, Any] | None:
+        row = self._exec("SELECT data FROM findings WHERE id=?", (finding_id,)).fetchone()
+        return json.loads(row["data"]) if row else None
+
+    def update_finding(self, finding_id: str, data: dict[str, Any]) -> None:
+        """Persist a finding's updated JSON blob, keeping the status column in sync."""
+        self._exec(
+            "UPDATE findings SET status=?, data=? WHERE id=?",
+            (data.get("status", "OPEN"), json.dumps(data), finding_id),
+        )
 
     def findings_for_assessment(self, assessment_id: str) -> list[dict[str, Any]]:
         rows = self._exec(

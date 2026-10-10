@@ -10,6 +10,7 @@ from nxtsec.config.settings import Settings, load_settings
 from nxtsec.database.store import Database, open_database
 from nxtsec.events.bus import EventBus
 from nxtsec.evidence.store import EvidenceStore
+from nxtsec.findings.service import FindingService
 from nxtsec.integrations.tools import ToolRegistry
 from nxtsec.jobs.engine import AssessmentEngine
 from nxtsec.logging.setup import configure_logging
@@ -76,6 +77,10 @@ class App:
             evidence=self.evidence,
             operator=self.settings.operator,
         )
+
+    @cached_property
+    def findings(self) -> FindingService:
+        return FindingService(self.db, self.settings.operator)
 
     @cached_property
     def platform(self) -> PlatformInfo:

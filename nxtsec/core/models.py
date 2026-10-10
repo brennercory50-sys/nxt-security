@@ -43,6 +43,40 @@ class FindingStatus(str, Enum):
     ACCEPTED = "ACCEPTED"
     CLOSED = "CLOSED"
 
+    def can_transition(self, to: FindingStatus) -> bool:
+        return to is not self and to in _FINDING_TRANSITIONS.get(self, frozenset())
+
+    @property
+    def is_open(self) -> bool:
+        """A finding still demanding attention (not dismissed or resolved)."""
+        return self in (FindingStatus.OPEN, FindingStatus.CONFIRMED)
+
+
+# A triager can advance a finding, dismiss it, or reopen it. Transitions are
+# validated so history stays meaningful; any state can reopen to OPEN.
+_FINDING_TRANSITIONS: dict[FindingStatus, frozenset[FindingStatus]] = {
+    FindingStatus.OPEN: frozenset(
+        {
+            FindingStatus.CONFIRMED,
+            FindingStatus.FALSE_POSITIVE,
+            FindingStatus.ACCEPTED,
+            FindingStatus.CLOSED,
+        }
+    ),
+    FindingStatus.CONFIRMED: frozenset(
+        {
+            FindingStatus.MITIGATED,
+            FindingStatus.ACCEPTED,
+            FindingStatus.FALSE_POSITIVE,
+            FindingStatus.CLOSED,
+        }
+    ),
+    FindingStatus.MITIGATED: frozenset({FindingStatus.CONFIRMED, FindingStatus.CLOSED}),
+    FindingStatus.ACCEPTED: frozenset({FindingStatus.CONFIRMED, FindingStatus.CLOSED}),
+    FindingStatus.FALSE_POSITIVE: frozenset({FindingStatus.OPEN}),
+    FindingStatus.CLOSED: frozenset({FindingStatus.OPEN}),
+}
+
 
 class AssessmentStatus(str, Enum):
     QUEUED = "queued"
