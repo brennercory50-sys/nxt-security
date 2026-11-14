@@ -12,6 +12,8 @@ Each observation serializes with a `type` discriminator. Current types:
 | `dns.record` | One DNS record (name, rtype, value, ttl) |
 | `relation` | Directed edge between assets (e.g. `domain -mail_exchanger-> host`) |
 | `net.port` | TCP/UDP port state |
+| `net.host` | Host reachability (up/down, hostnames) |
+| `net.service` | Identified service on an open port |
 | `ip.info` | IP address classification and PTR records |
 | `http.response` | HTTP exchange metadata *(reserved; module pending)* |
 | `tech` | Detected technology *(reserved; module pending)* |

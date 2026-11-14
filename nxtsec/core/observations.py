@@ -64,6 +64,34 @@ class PortState(Observation):
 
 
 @dataclass(frozen=True)
+class HostStatus(Observation):
+    """Reachability of a host, as reported by a scanner."""
+
+    TYPE: ClassVar[str] = "net.host"
+    address: str
+    state: str  # up | down
+    reason: str | None = None
+    hostnames: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class Service(Observation):
+    """A service identified on an open port."""
+
+    TYPE: ClassVar[str] = "net.service"
+    address: str
+    port: int
+    protocol: str
+    service: str
+    product: str | None = None
+    version: str | None = None
+    extrainfo: str | None = None
+    cpe: list[str] = field(default_factory=list)
+    tunnel: str | None = None  # e.g. "ssl"
+    method: str | None = None  # table | probed
+
+
+@dataclass(frozen=True)
 class IpInfo(Observation):
     TYPE: ClassVar[str] = "ip.info"
     address: str
@@ -229,6 +257,8 @@ OBSERVATION_TYPES: dict[str, type[Observation]] = {
         DnsRecord,
         Relationship,
         PortState,
+        HostStatus,
+        Service,
         IpInfo,
         HttpExchange,
         Technology,

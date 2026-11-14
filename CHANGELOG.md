@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.7.0] - Phase 9 (network engine: nmap)
+
+### Added
+- Nmap integration (`nxtsec/integrations/nmap.py`): safe argv construction from a fixed set of
+  non-destructive connect-scan profiles (connect / top-ports / service / quick) and an XML
+  result parser producing normalized `net.host` / `net.port` / `net.service` observations.
+- `network.nmap` module: resolves and scope-checks the target (DNS pivot guard), runs nmap
+  through the safe runner (argv list, resolved binary, timeout), stores the raw XML as verified
+  evidence, and degrades to an error if nmap is not installed. MEDIUM risk; NETWORK_ACCESS +
+  EXEC_TOOLS.
+- `nxtsec scan network <target> [--profile P]` convenience command.
+- `HostStatus` and `Service` observation types; CLI rendering for the net.* observations.
+
+### Notes
+- Only connect scans (`-sT`) are shipped, so no raw sockets or root are required; no intrusive
+  NSE scripts. Live scanning is unavailable in the build sandbox, so the parser is tested against
+  captured nmap XML and the module against a stub nmap binary, with an end-to-end CLI run verified.
+
 ## [0.6.0] - Phases 16 & 19 (findings engine + reporting)
 
 ### Added

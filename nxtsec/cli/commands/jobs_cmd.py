@@ -48,6 +48,16 @@ def _obs_line(o: dict[str, Any]) -> str:
     t = o.get("type", "?")
     if t == "tcp.port":
         return f"{o['address']}:{o['port']:<6} {o['state']:<11} {o.get('latency_ms', '')}ms"
+    if t == "net.host":
+        names = (" " + ",".join(o["hostnames"])) if o.get("hostnames") else ""
+        return f"host {o['address']} {o['state']}{names}"
+    if t == "net.port":
+        return f"{o['address']}:{o['port']}/{o['protocol']} {o['state']}"
+    if t == "net.service":
+        bits = " ".join(x for x in (o.get("product"), o.get("version"), o.get("extrainfo")) if x)
+        return f"{o['address']}:{o['port']}/{o['protocol']} {o['service']}" + (
+            f"  {bits}" if bits else ""
+        )
     if t == "dns.address":
         return f"{o['name']} {o['record']:<4} {o['address']}"
     if t == "dns.ptr":

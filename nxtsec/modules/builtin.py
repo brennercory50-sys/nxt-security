@@ -6,6 +6,7 @@ from nxtsec.modules.dns.records import DnsRecords
 from nxtsec.modules.dns.resolve import DnsResolve
 from nxtsec.modules.forensics.hashes import FileHash
 from nxtsec.modules.network.ip_info import IpInfoModule
+from nxtsec.modules.network.nmap_scan import NmapScan
 from nxtsec.modules.network.tcp_connect import TcpConnect
 from nxtsec.modules.web.certificate import TlsCertificate
 from nxtsec.plugins.base import Plugin
@@ -16,6 +17,7 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     DnsRecords,
     TcpConnect,
     IpInfoModule,
+    NmapScan,
     FileHash,
     TlsCertificate,
 )

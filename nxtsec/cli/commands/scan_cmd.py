@@ -26,6 +26,48 @@ def parse_cli_options(pairs: tuple[str, ...]) -> dict[str, str]:
     return out
 
 
+def run_and_report(
+    ctx: click.Context,
+    target: str,
+    modules: tuple[str, ...],
+    options: tuple[str, ...],
+    as_json: bool,
+    *,
+    mode: Mode = Mode.REAL,
+) -> None:
+    """Plan, execute and print one foreground assessment. Exits 0/1/3."""
+    app = get_app(ctx)
+    try:
+        a = app.engine.plan(target, modules, mode=mode, options=parse_cli_options(options))
+    except ScopeViolation as exc:
+        click.echo(click.style(f"REFUSED: {exc}", fg="red"), err=True)
+        sys.exit(3)
+    except NxtSecError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    if not as_json:
+        click.echo(f"{a.id}  target={a.target.raw}  modules={','.join(a.modules)}")
+
+        def on_module(ev: Event) -> None:
+            p = ev.payload
+            if p.get("assessment_id") == a.id:
+                click.echo(
+                    f"  {p['module']:<24} {status_tag(p['status'])} "
+                    f"{p['observations']} obs, {p['findings']} findings"
+                )
+
+        app.bus.subscribe("module.finished", on_module)
+
+    result = app.engine.execute(a.id)
+    detail = assessment_detail(result.id, ctx)
+    if as_json:
+        click.echo(json.dumps(redact_obj(detail), indent=2, default=str))
+    else:
+        click.echo("")
+        print_detail(detail)
+    sys.exit(0 if result.status.value == "completed" else 1)
+
+
 @click.group()
 def scan() -> None:
     """Plan and run assessments against in-scope targets."""
@@ -116,3 +158,30 @@ def scan_run(
         click.echo("")
         print_detail(detail)
     sys.exit(0 if result.status.value == "completed" else 1)
+
+
+@scan.command("network")
+@click.argument("target")
+@click.option(
+    "-o",
+    "--option",
+    "options",
+    multiple=True,
+    metavar="KEY=VALUE",
+    help="Module option, e.g. profile=service or network.nmap.ports=1-1024.",
+)
+@click.option(
+    "--profile",
+    type=click.Choice(
+        sorted(__import__("nxtsec.integrations.nmap", fromlist=["PROFILES"]).PROFILES)
+    ),
+    help="nmap scan profile (shortcut for -o profile=...).",
+)
+@json_option
+@click.pass_context
+def scan_network(ctx, target, options, profile, as_json):  # type: ignore[no-untyped-def]
+    """Port/service scan of TARGET via nmap (connect-scan profiles)."""
+    opts = list(options)
+    if profile:
+        opts.append(f"network.nmap.profile={profile}")
+    run_and_report(ctx, target, ("network.nmap",), tuple(opts), as_json)

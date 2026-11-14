@@ -205,3 +205,20 @@ def test_recon_tls_against_local_server(tmp_path):
         "untrusted" in f["title"].lower() or "self-signed" in f["title"].lower()
         for f in detail["findings"]
     )
+
+
+def test_scan_network_refuses_out_of_scope():
+    r = run("scan", "network", "8.8.8.8")
+    assert r.exit_code == 3 and "REFUSED" in r.output
+
+
+def test_scan_network_reports_missing_nmap(monkeypatch):
+    # nmap not installed in CI/sandbox: module records an error, assessment fails, exit 1
+    monkeypatch.setenv("PATH", "")
+    r = run("scan", "network", "127.0.0.1", "--json")
+    assert r.exit_code in (0, 1)
+    detail = json.loads(r.output)
+    runs = detail["module_runs"]
+    assert runs and any(
+        "nmap is not installed" in e for run_ in runs for e in run_.get("errors", [])
+    )

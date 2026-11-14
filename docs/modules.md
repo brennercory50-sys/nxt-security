@@ -12,6 +12,7 @@ network, web and forensics engines arrive in Phases 8–13.
 | `dns.records` | domain, hostname, URL | low | NETWORK_ACCESS | Enumerate A/AAAA/CNAME/MX/NS/TXT/SOA/CAA; derive mail-exchanger/name-server/alias edges; flag SPF/DMARC gaps. |
 | `ip.info` | IP, domain, hostname, URL | low | NETWORK_ACCESS | Classify each address (global/private/loopback/…) and resolve PTR records. |
 | `tls.certificate` | domain, hostname, IP, URL | low | NETWORK_ACCESS | Inspect the presented X.509 certificate: expiry, trust, hostname match, key strength. |
+| `network.nmap` | IP, domain, hostname | medium | NETWORK_ACCESS, EXEC_TOOLS | Port/service scan via nmap connect-scan profiles; normalized host/port/service inventory. |
 
 ### `network.tcp_connect`
 Options: `ports` (default `22,80,443`, or the URL's port; ranges like `8000-8010`; max 1024),
@@ -55,3 +56,17 @@ application data.
 > `security.txt`, technology fingerprinting), certificate-transparency subdomain discovery, and
 > RDAP/WHOIS. These need the target HTTP client and outbound access to public APIs; they are
 > tracked as a known gap.
+
+
+### `network.nmap`
+Options: `profile` (`connect`, `top-ports` (default), `service`, `quick`), `ports` (nmap `-p`
+syntax: digits, commas, hyphens only), `timeout` (5–3600s, default 300). Requires the `nmap`
+binary (`nxtsec tools info nmap`); set `tools.nmap.path` in config if it is not on PATH. All
+shipped profiles are **connect scans** (`-sT`), so no raw sockets or root are needed, and none
+enable intrusive NSE scripts or OS-fingerprint floods. Hostnames are resolved and checked by the
+DNS pivot guard before the scan; only the first in-scope address is scanned. Emits `net.host`,
+`net.port` and `net.service` observations and stores the raw nmap XML as verified evidence. If
+nmap is absent the module records an error rather than failing the run.
+
+Run it with `nxtsec scan network <target> [--profile service]` or
+`nxtsec scan run <target> -m network.nmap`.
