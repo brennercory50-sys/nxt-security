@@ -6,6 +6,9 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 
+from nxtsec.ai.analyst import AIAnalyst
+from nxtsec.ai.base import AIProvider
+from nxtsec.ai.factory import build_provider
 from nxtsec.config.settings import Settings, load_settings
 from nxtsec.database.store import Database, open_database
 from nxtsec.events.bus import EventBus
@@ -81,6 +84,14 @@ class App:
     @cached_property
     def findings(self) -> FindingService:
         return FindingService(self.db, self.settings.operator)
+
+    @cached_property
+    def ai_provider(self) -> AIProvider:
+        return build_provider(self.settings)
+
+    @cached_property
+    def ai(self) -> AIAnalyst:
+        return AIAnalyst(self.ai_provider, self.findings, self.settings.operator)
 
     @cached_property
     def platform(self) -> PlatformInfo:

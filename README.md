@@ -25,6 +25,7 @@ engineering, vulnerability assessment, forensics and lab practice.
 | 19 | Reporting engine: Markdown / HTML / JSON / CSV | ✅ done |
 | 9 | Network engine: nmap integration (XML parser), host/port/service inventory, `scan network` | ✅ done |
 | 15 | Secret scanner: masked detection of hardcoded credentials in your own code | ✅ done |
+| 18 | AI layer: provider-agnostic advisory analysis (offline/Claude/OpenAI/local) | ✅ done |
 | 10+ | Web, vulnerability, OSINT engines, … | ⏳ planned |
 
 Nothing listed as planned exists yet. See `docs/architecture.md` for the roadmap.
@@ -48,6 +49,7 @@ nxtsec findings list                # triage what was found
 nxtsec report --format html -o report.html
 nxtsec scan network 192.168.1.20 --profile service
 nxtsec scan secrets ./my-project    # find hardcoded secrets in your own code
+nxtsec ai summarize --open          # optional AI summary of open findings
 nxtsec config validate
 nxtsec scope show
 nxtsec scope check 192.168.1.20 8.8.8.8     # exit code 3 if anything is out of scope
@@ -66,4 +68,4 @@ python -m mypy          # strict type checking
 Docs: [architecture](docs/architecture.md) · [configuration](docs/configuration.md) ·
 [security](docs/security.md) · [plugins](docs/plugins.md) · [development](docs/development.md) ·
 [CLI](docs/cli.md) · [tools](docs/tools.md) · [assessments](docs/assessments.md) ·
-[modules](docs/modules.md) · [findings](docs/findings.md) · [reporting](docs/reporting.md)
+[modules](docs/modules.md) · [findings](docs/findings.md) · [reporting](docs/reporting.md) · [ai](docs/ai.md)

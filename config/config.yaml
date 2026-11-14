@@ -30,8 +30,12 @@ tools: {}
 #  nmap: { path: "C:/Program Files (x86)/Nmap/nmap.exe" }
 
 ai:
-  provider: null          # openai | claude | local (Phase 18)
-  providers: {}
+  provider: offline       # offline | claude | openai | local
+  model: null             # provider default if null (claude -> claude-opus-5-5)
+  base_url: null          # for local/OpenAI-compatible servers (e.g. Ollama)
+  api_key_env: OPENAI_API_KEY   # NAME of the env var holding the key (never the key itself)
+  # Keys come ONLY from the environment: ANTHROPIC_API_KEY for claude, the var
+  # named above for openai/local. AI output is advisory and never changes a finding.
 
 safety:
   require_attestation: true   # REAL-mode network ops need operator_attestation in the scope

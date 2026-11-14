@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.9.0] - Phase 18 (AI analysis layer)
+
+### Added
+- Provider-agnostic AI layer (`nxtsec/ai/`): `AIProvider` contract with four adapters —
+  `offline` (deterministic, default, no network/key/package), `claude` (Anthropic SDK, lazy),
+  `openai` and `local` (OpenAI-compatible, lazy; `local` defaults to an Ollama base URL).
+  Provider chosen by `ai.provider`; unknown values fall back to offline.
+- `AIAnalyst`: builds prompts from findings and produces analysis/summaries. **Findings are
+  redacted before any prompt is sent**, so secrets never leave the process even with a remote
+  provider; AI output is advisory only — `--annotate` attaches it as a finding note and never
+  changes severity or status. Every call is audited (`ai.analyze`, `ai.summarize`).
+- `nxtsec ai status|analyze|summarize`.
+- Optional install extras: `.[claude]`, `.[openai]`.
+
+### Security
+- API keys are read only from environment variables (configurable name), never from YAML.
+- AI is never the sole authority for a finding; a human always decides.
+
 ## [0.8.0] - Phase 15 (secret scanner)
 
 ### Added

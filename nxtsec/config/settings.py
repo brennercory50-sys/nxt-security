@@ -42,7 +42,7 @@ DEFAULTS: dict[str, Any] = {
     },
     "tools": {},
     "execution": {"default_timeout": 60, "max_output_bytes": 10485760},
-    "ai": {"provider": None, "providers": {}},
+    "ai": {"provider": "offline", "model": None, "base_url": None, "api_key_env": "OPENAI_API_KEY"},
     "safety": {"require_attestation": True, "max_cidr_hosts": 4096, "max_risk_real": "medium"},
     "jobs": {"workers": 2, "poll_interval": 5},
     "scheduler": {"enabled": False},

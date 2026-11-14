@@ -12,6 +12,7 @@ from pathlib import Path
 import click
 
 from nxtsec import __version__
+from nxtsec.cli.commands.ai_cmd import ai
 from nxtsec.cli.commands.config_cmd import config
 from nxtsec.cli.commands.findings_cmd import findings
 from nxtsec.cli.commands.jobs_cmd import jobs
@@ -55,6 +56,7 @@ for _cmd in (
     jobs,
     findings,
     report,
+    ai,
     tools,
     plugins,
     logs,
