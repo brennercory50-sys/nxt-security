@@ -185,3 +185,21 @@ def scan_network(ctx, target, options, profile, as_json):  # type: ignore[no-unt
     if profile:
         opts.append(f"network.nmap.profile={profile}")
     run_and_report(ctx, target, ("network.nmap",), tuple(opts), as_json)
+
+
+@scan.command("secrets")
+@click.argument("path")
+@click.option(
+    "-o",
+    "--option",
+    "options",
+    multiple=True,
+    metavar="KEY=VALUE",
+    help="Module option, e.g. max_files=5000.",
+)
+@json_option
+@click.pass_context
+def scan_secrets(ctx, path, options, as_json):  # type: ignore[no-untyped-def]
+    """Scan a file or directory PATH for hardcoded secrets (values masked)."""
+    target = path if path.startswith(("file:", "lab:")) else f"file:{path}"
+    run_and_report(ctx, target, ("secrets.scan",), options, as_json)

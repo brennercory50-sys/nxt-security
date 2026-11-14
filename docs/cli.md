@@ -10,6 +10,7 @@ Global options: `--config PATH`, `--no-log-file`, `-V/--version`, `-h/--help` (o
 | `nxtsec config show\|path\|validate\|init-scope` | Configuration |
 | `nxtsec scope show\|check TARGET... [--resolve]` | Scope; `check` exits 3 if any target is refused; `--resolve` applies the DNS pivot guard |
 | `nxtsec scan network TARGET [--profile P]` | Port/service scan via nmap (see `modules.md`) |
+| `nxtsec scan secrets PATH` | Scan source for hardcoded secrets (values masked) |
 | `nxtsec scan run TARGET -m MOD [-o K=V] [--lab] [--queue\|--background]` | Plan + run an assessment (see `assessments.md`) |
 | `nxtsec jobs list\|show\|run\|cancel\|worker` | Inspect and control assessments |
 | `nxtsec target parse\|add\|list\|remove` | Target inventory; `add` refuses out-of-scope targets unless `--allow-out-of-scope` |

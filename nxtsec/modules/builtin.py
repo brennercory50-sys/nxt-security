@@ -8,6 +8,7 @@ from nxtsec.modules.forensics.hashes import FileHash
 from nxtsec.modules.network.ip_info import IpInfoModule
 from nxtsec.modules.network.nmap_scan import NmapScan
 from nxtsec.modules.network.tcp_connect import TcpConnect
+from nxtsec.modules.secrets.scan import SecretsScan
 from nxtsec.modules.web.certificate import TlsCertificate
 from nxtsec.plugins.base import Plugin
 from nxtsec.plugins.registry import PluginRegistry
@@ -18,6 +19,7 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     TcpConnect,
     IpInfoModule,
     NmapScan,
+    SecretsScan,
     FileHash,
     TlsCertificate,
 )

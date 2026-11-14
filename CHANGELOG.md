@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.8.0] - Phase 15 (secret scanner)
+
+### Added
+- Secret-detection engine (`nxtsec/scanners/secrets.py`): typed provider rules (AWS, GitHub,
+  Stripe, Google, Slack, Anthropic, OpenAI, OAuth), PEM private keys, JWTs, connection-URL
+  passwords, sensitive assignments, and a high-entropy fallback; Shannon-entropy gating and
+  placeholder filtering. Every match carries a MASKED value only — the engine never returns a
+  secret in the clear.
+- `secrets.scan` module: read-only walk of a file or source tree (skips vendored/build dirs,
+  binaries and oversized files), one masked finding per secret (CWE-798) with rotation-first
+  remediation. PASSIVE risk; READ_ONLY + LOCAL_FILES.
+- `nxtsec scan secrets <path>` convenience command.
+
+### Notes
+- Pure offline static analysis; no network. Values are masked in the finding title, component,
+  description, stored evidence and all CLI/report output, verified by tests that assert the raw
+  secret never appears. Feeds the existing findings-triage and reporting loop.
+
 ## [0.7.0] - Phase 9 (network engine: nmap)
 
 ### Added

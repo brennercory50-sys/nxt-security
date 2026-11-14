@@ -96,3 +96,21 @@ def test_report_min_severity_and_open_filters():
 def test_report_unknown_assessment():
     seed()
     assert run("report", "--assessment", "asm_nope").exit_code != 0
+
+
+def test_scan_secrets_cli(tmp_path):
+    secret = "gh" + "p_" + "Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3h2"
+    (tmp_path / "leak.py").write_text(f'API_TOKEN = "{secret}"\n')
+    r = run("scan", "secrets", str(tmp_path), "--json")
+    assert r.exit_code in (0, 1)
+    detail = json.loads(r.output)
+    findings = detail["findings"]
+    assert findings and any("github_token" in f["component"] for f in findings)
+    # the raw secret must never appear in CLI output
+    assert secret not in r.output and secret[:4] in r.output
+
+
+def test_scan_secrets_clean_tree(tmp_path):
+    (tmp_path / "ok.py").write_text("def add(a, b):\n    return a + b\n")
+    r = run("scan", "secrets", str(tmp_path))
+    assert r.exit_code == 0 and "0 finding" in r.output

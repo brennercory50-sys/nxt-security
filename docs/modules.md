@@ -13,6 +13,7 @@ network, web and forensics engines arrive in Phases 8–13.
 | `ip.info` | IP, domain, hostname, URL | low | NETWORK_ACCESS | Classify each address (global/private/loopback/…) and resolve PTR records. |
 | `tls.certificate` | domain, hostname, IP, URL | low | NETWORK_ACCESS | Inspect the presented X.509 certificate: expiry, trust, hostname match, key strength. |
 | `network.nmap` | IP, domain, hostname | medium | NETWORK_ACCESS, EXEC_TOOLS | Port/service scan via nmap connect-scan profiles; normalized host/port/service inventory. |
+| `secrets.scan` | file | passive | READ_ONLY, LOCAL_FILES | Scan your own source tree for hardcoded credentials; secret values are masked everywhere. |
 
 ### `network.tcp_connect`
 Options: `ports` (default `22,80,443`, or the URL's port; ranges like `8000-8010`; max 1024),
@@ -70,3 +71,17 @@ nmap is absent the module records an error rather than failing the run.
 
 Run it with `nxtsec scan network <target> [--profile service]` or
 `nxtsec scan run <target> -m network.nmap`.
+
+
+### `secrets.scan`
+Options: `max_files` (default 10000), `max_bytes` (per-file cap, default 2 MiB). Walks a file or
+directory read-only, never following symlinks, and skips vendored/build directories (`.git`,
+`node_modules`, `.venv`, `dist`, ...) and binary or oversized files. Detects provider tokens
+(AWS, GitHub, Stripe, Google, Slack, Anthropic, OpenAI), PEM private keys, JWTs, passwords in
+connection URLs, sensitive `key = "value"` assignments, and high-entropy strings; obvious
+placeholders (`your_api_key`, `changeme`, `${VAR}`, ...) are filtered. **Every detected value is
+masked** (`ghp_****...****q7R8`) in the finding title, component, description and stored evidence,
+so running the scan never writes a credential anywhere. Each secret becomes a finding (CWE-798)
+with rotation-first remediation.
+
+Run it with `nxtsec scan secrets <path>` or `nxtsec scan run file:<path> -m secrets.scan`.

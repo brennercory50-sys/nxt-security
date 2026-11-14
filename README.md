@@ -24,6 +24,7 @@ engineering, vulnerability assessment, forensics and lab practice.
 | 16 | Finding engine: dedup, validated status transitions, notes, triage CLI | ✅ done |
 | 19 | Reporting engine: Markdown / HTML / JSON / CSV | ✅ done |
 | 9 | Network engine: nmap integration (XML parser), host/port/service inventory, `scan network` | ✅ done |
+| 15 | Secret scanner: masked detection of hardcoded credentials in your own code | ✅ done |
 | 10+ | Web, vulnerability, OSINT engines, … | ⏳ planned |
 
 Nothing listed as planned exists yet. See `docs/architecture.md` for the roadmap.
@@ -46,6 +47,7 @@ nxtsec recon tls example.com        # certificate expiry, trust, hostname, key
 nxtsec findings list                # triage what was found
 nxtsec report --format html -o report.html
 nxtsec scan network 192.168.1.20 --profile service
+nxtsec scan secrets ./my-project    # find hardcoded secrets in your own code
 nxtsec config validate
 nxtsec scope show
 nxtsec scope check 192.168.1.20 8.8.8.8     # exit code 3 if anything is out of scope
